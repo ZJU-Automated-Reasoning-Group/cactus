@@ -7,7 +7,4 @@ else()
 
  target_link_libraries(sparrow SparrowLib ${llvm_libs} ) #if using SVF
  #target_link_libraries(sparrow sailLib ${llvm_libs} )
-
- set_target_properties(sparrow PROPERTIES
-         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin )
 endif()

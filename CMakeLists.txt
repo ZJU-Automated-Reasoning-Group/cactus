@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.4.3)
 project(Sparrow)
-set(CMAKE_CXX_STANDARD 11)
-set(CMAKE_CXX_FLAGS "-fPIC -std=gnu++11 -O0 -fno-rtti -Wno-deprecated")
+set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_FLAGS "-fPIC -std=gnu++14 -O0 -fno-rtti -Wno-deprecated")
 
 
 #find LLVM package
@@ -10,8 +10,6 @@ if (NOT LLVM_BUILD_PATH)
 else()
     message(STATUS "LLVM_BUILD_PATH set to : ${LLVM_BUILD_PATH}")
 endif()
-
-
 
 find_package(LLVM 3.6.2
         REQUIRED
@@ -38,10 +36,34 @@ else()
     message(STATUS "definitions in LLVM ${LLVM_DEFINITIONS}")
 endif()
 
+# Check for Python3 installation
+find_package(PythonInterp 3 REQUIRED)
+message(STATUS "Found Python ${PYTHON_VERSION_STRING}")
+message(STATUS "Using python interpreter in: ${PYTHON_EXECUTABLE}")
 
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include
-                    ${CMAKE_CURRENT_BINARY_DIR}/include
-        )
+# Check for C++14 support and set the compilation flag
+include(CheckCXXCompilerFlag)
+CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
+if(COMPILER_SUPPORTS_CXX14)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -fno-rtti -Wall -fPIC")
+else()
+	message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support. Please use a different C++ compiler.")
+endif()
+
+configure_file(config/ptr.config ptr.config COPYONLY)
+configure_file(config/modref.config modref.config COPYONLY)
+configure_file(config/taint.config taint.config COPYONLY)
+
+
+include_directories(
+    ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${CMAKE_CURRENT_BINARY_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib
+)
+
+# Specify library and binary output dir
+set (EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 add_subdirectory(lib)
 add_subdirectory(tools)
