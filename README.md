@@ -87,8 +87,41 @@ Sparrow provides several core analysis capabilities:
 
 ## Command Line Options
 
-- **Function Pointer Analysis**: The default analysis performed by Sparrow.
+Sparrow supports a variety of command line options for different analysis types and configurations:
 
+### Basic Options
+- `-help`: Display available command line options
+- `-stats`: Display execution statistics
+- `-time-passes`: Time each analysis pass and print results
+
+### Analysis Options
+- **Function Pointer Analysis** (default): Performs context-sensitive function pointer analysis
+  ```bash
+  ./sparrow your_project.bc
+  ```
+
+- **Pointer Analysis**: (TBD)
+  ```bash
+   your_project.bc -ptr-analysis [type]
+  ```
+  Where `[type]` can be one of:
+  - `andersen`: Andersen's inclusion-based analysis (faster, less precise)
+  - `steens`: Steensgaard's unification-based analysis (fastest, least precise)
+  - `flow-sensitive`: Flow-sensitive analysis (more precise, slower)
+  - `context-sensitive`: Context-sensitive analysis (most precise, slowest)
+
+- **Taint Analysis**:
+  ```bash
+  ./sparrow your_project.bc -taint-analysis
+  ```
+  Use with `-taint-config [file]` to specify a custom configuration file.
+
+- **Numerical Analysis**:
+  ```bash
+  ./sparrow your_project.bc -range-analysis
+  ```
+
+### Output Options
 - **Dump Transformed BC**: Remove indirect calls for better static analysis.
   ```bash
   ./sparrow your_project.bc -dump-bc
@@ -99,6 +132,37 @@ Sparrow provides several core analysis capabilities:
   ```bash
   ./sparrow your_project.bc -dump-report
   ```
+
+- **Output Formats**:
+  ```bash
+  ./sparrow your_project.bc -output-format [format]
+  ```
+  Where `[format]` can be:
+  - `text`: Human-readable text (default)
+  - `json`: JSON format
+  - `csv`: CSV format
+
+### Configuration Options
+- **Load Custom Configuration**:
+  ```bash
+  ./sparrow your_project.bc -config-file [path]
+  ```
+
+- **Set Analysis Precision**:
+  ```bash
+  ./sparrow your_project.bc -precision [level]
+  ```
+  Where `[level]` can be:
+  - `low`: Faster analysis, less precise results
+  - `medium`: Balanced precision and performance
+  - `high`: Higher precision, slower performance
+
+### Parallelization Options
+- **Set Thread Count**:
+  ```bash
+  ./sparrow your_project.bc -j [threads]
+  ```
+  Where `[threads]` is the number of threads to use for parallel analyses.
 
 ## Understanding the Report
 
