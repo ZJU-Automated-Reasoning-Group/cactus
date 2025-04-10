@@ -168,8 +168,9 @@ private:
 		auto summary = modRefTable.lookup(f->getName());
 		if (summary == nullptr)
 		{
-			errs() << "Missing entry in ModRefTable: " << f->getName() << "\n";
-			llvm_unreachable("Consider adding the function to modref annotations");
+			errs() << "Warning: Missing entry in ModRefTable: " << f->getName() << "\n";
+			errs() << "Treating as no effect. Add annotation to modref config for more precise analysis.\n";
+			return;
 		}
 		auto& inst = *cs.getInstruction();
 
@@ -182,6 +183,12 @@ private:
 
 				auto const& argPos = pos.getAsArgPosition();
 				unsigned idx = argPos.getArgIndex();
+
+				if (idx >= cs.arg_size()) {
+					errs() << "Warning: Argument index " << idx << " out of range (max " << cs.arg_size() 
+						<< ") in call to " << f->getName() << ". Skipping effect.\n";
+					continue;
+				}
 
 				if (!argPos.isAfterArgPosition())
 					processMemRead(inst, cs.getArgument(idx), effect.onReachableMemory());

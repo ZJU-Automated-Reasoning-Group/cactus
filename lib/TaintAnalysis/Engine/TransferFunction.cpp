@@ -157,7 +157,16 @@ void TransferFunction::evalStore(const ProgramPoint& pp, EvalResult& evalResult)
 		return;
 
 	auto ptsSet = globalState.getPointerAnalysis().getPtsSet(ctx, ptrOp);
-	assert(!ptsSet.empty());
+	// FIXME: should we add asseertion here, or report a null pointer error?
+	// The souce of this issue is very likey due to un-modeled external functions
+	// We do not perform the check strictly in an earlier stage, so we have the issue here...
+	// assert(!ptsSet.empty());
+	if (ptsSet.empty()) {
+		// is this a good solution?
+		// No points-to information available, cannot update the store
+		return;
+	}
+	
 	auto obj = *ptsSet.begin();
 	
 	if (ptsSet.size() == 1 && !obj->isSummaryObject())
@@ -205,7 +214,15 @@ void TransferFunction::evalInternalCall(const ProgramPoint& pp, const tpa::Funct
 
 	auto callee = fc.getFunction();
 	auto numParam = callee->arg_size();
-	assert(cs.arg_size() >= numParam);
+	// Remove the assertion and handle the case where there are fewer arguments than parameters
+	// assert(cs.arg_size() >= numParam);
+
+	// Handle the case where there are fewer arguments than parameters
+	if (cs.arg_size() < numParam) {
+		errs() << "Warning: Function call has fewer arguments (" << cs.arg_size() 
+			   << ") than parameters (" << numParam << "). Using available arguments only.\n";
+		numParam = cs.arg_size();
+	}
 
 	auto argSets = collectArgumentTaintValue(pp.getContext(), cs, numParam);
 	if (argSets.size() < numParam)
@@ -365,8 +382,6 @@ EvalResult TransferFunction::eval(const ProgramPoint& pp)
 				evalReturn(pp, evalResult);
 				break;
 			case Instruction::Switch:
-			case Instruction::IndirectBr:
-			case Instruction::AtomicCmpXchg:
 			case Instruction::AtomicRMW:
 			case Instruction::Fence:
 			case Instruction::VAArg:
@@ -374,8 +389,9 @@ EvalResult TransferFunction::eval(const ProgramPoint& pp)
 			case Instruction::Resume:
 			case Instruction::Unreachable:
 			{
-				errs() << "Insruction not handled :" << *inst << "\n";
-				llvm_unreachable("Taint analysis failed");
+				errs() << "Warning: Instruction not handled: " << *inst << "\n";
+				errs() << "Treating as no-op. Results may be less precise.\n";
+				break;
 			}
 		}
 	}

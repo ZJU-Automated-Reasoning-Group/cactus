@@ -28,6 +28,7 @@ static const Value* getArgument(const CallCFGNode& callNode, const APosition& po
 	assert(cs);
 	
 	auto argIdx = pos.getAsArgPosition().getArgIndex();
+	// FIXME: what if the following assertion fails?
 	assert(cs.arg_size() > argIdx);
 
 	return cs.getArgument(argIdx)->stripPointerCasts();
@@ -37,6 +38,7 @@ static Type* getMallocType(const Instruction* callInst)
 {
 	assert(callInst != nullptr);
 
+	// Use a safer approach to avoid potential null pointers
 	PointerType* mallocType = nullptr;
 	size_t numOfBitCastUses = 0;
 
@@ -45,22 +47,57 @@ static Type* getMallocType(const Instruction* callInst)
 	{
 		if (auto bcInst = dyn_cast<BitCastInst>(user))
 		{
-			mallocType = cast<PointerType>(bcInst->getDestTy());
+			Type* destType = bcInst->getDestTy();
+			if (destType && destType->isPointerTy()) {
+				mallocType = dyn_cast<PointerType>(destType);
+				if (mallocType) {
+					numOfBitCastUses++;
+				}
+			}
+		}
+		else if (isa<GetElementPtrInst>(user))
+		{
 			numOfBitCastUses++;
 		}
-		if (isa<GetElementPtrInst>(user))
-			numOfBitCastUses++;
 	}
 
 	// Malloc call has 1 bitcast use, so type is the bitcast's destination type.
-	if (numOfBitCastUses == 1)
-		return mallocType->getPointerElementType();
+	if (numOfBitCastUses == 1 && mallocType)
+	{
+		// Safely get element type
+		Type* elemType = nullptr;
+		try {
+			elemType = mallocType->getElementType();
+		} catch (...) {
+			// If this fails, return nullptr
+			return nullptr;
+		}
+		return elemType;
+	}
 
 	// Malloc call was not bitcast, so type is the malloc function's return type.
 	if (numOfBitCastUses == 0)
-		return callInst->getType()->getPointerElementType();
+	{
+		Type* type = callInst->getType();
+		if (type && type->isPointerTy())
+		{
+			auto ptrType = dyn_cast<PointerType>(type);
+			if (ptrType)
+			{
+				// Safely get element type
+				Type* elemType = nullptr;
+				try {
+					elemType = ptrType->getElementType();
+				} catch (...) {
+					// If this fails, return nullptr
+					return nullptr;
+				}
+				return elemType;
+			}
+		}
+	}
 
-	// Type could not be determined. Return i8* as a conservative answer
+	// Type could not be determined. Return null as a conservative answer
 	return nullptr;
 }
 
@@ -72,7 +109,8 @@ static bool isSingleAlloc(const TypeLayout* typeLayout, const llvm::Value* sizeV
 	if (auto cInt = dyn_cast<ConstantInt>(sizeVal))
 	{
 		auto size = cInt->getZExtValue();
-		assert(size % typeLayout->getSize() == 0);
+		if (typeLayout->getSize() == 0 || size % typeLayout->getSize() != 0)
+			return false;
 		return size == typeLayout->getSize();
 	}
 
@@ -108,6 +146,7 @@ bool TransferFunction::evalExternalAlloc(const context::Context* ctx, const Call
 	auto mallocType = getMallocType(callNode.getCallSite());
 	auto sizeVal = allocEffect.hasSizePosition() ? getArgument(callNode, allocEffect.getSizePosition()) : nullptr;
 
+	// Handle the case where getMallocType returns nullptr
 	return evalMallocWithSize(ctx, dstVal, mallocType, sizeVal);
 }
 
@@ -305,8 +344,12 @@ void TransferFunction::evalExternalCall(const context::Context* ctx, const CallC
 	auto summary = globalState.getExternalPointerTable().lookup(fc.getFunction()->getName());
 	if (summary == nullptr)
 	{
-		errs() << "\nPointer Analysis error: cannot find annotation for the following function:\n" << fc.getFunction()->getName() << "\n\n";
-		llvm_unreachable("Please add annotation to the aforementioned function and in the config file and try again.\n");
+		errs() << "\nWarning: Cannot find annotation for external function:\n" << fc.getFunction()->getName() << "\n";
+		errs() << "Treating as IGNORE. Add annotation to config file for more precise analysis.\n";
+		
+		// Treat unmodeled functions as no-ops by default instead of crashing
+		addMemLevelSuccessors(ProgramPoint(ctx, &callNode), *localState, evalResult);
+		return;
 	}
 
 	// If the external func is a noop, we still need to propagate

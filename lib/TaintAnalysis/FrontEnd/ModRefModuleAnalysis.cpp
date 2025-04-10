@@ -169,6 +169,12 @@ bool updateSummaryForModEffect(const Instruction* inst, ModRefFunctionSummary& s
 		auto const& argPos = pos.getAsArgPosition();
 		unsigned idx = argPos.getArgIndex();
 
+		if (idx >= cs.arg_size()) {
+			errs() << "Warning: Argument index " << idx << " out of range (max " << cs.arg_size() 
+			       << ") in call to " << cs.getCalledFunction()->getName() << ". Skipping effect.\n";
+			return false;
+		}
+
 		if (!argPos.isAfterArgPosition())
 			return addExternalMemoryWrite(cs.getArgument(idx)->stripPointerCasts(), summary, caller, ptrAnalysis, modEffect.onReachableMemory());
 		else
@@ -216,6 +222,13 @@ bool updateSummaryForRefEffect(const Instruction* inst, ModRefFunctionSummary& s
 	auto const& argPos = pos.getAsArgPosition();
 	unsigned idx = argPos.getArgIndex();
 
+	// Add a bounds check to avoid "Argument # out of range!" assertion
+	if (idx >= cs.arg_size()) {
+		errs() << "Warning: Argument index " << idx << " out of range (max " << cs.arg_size() 
+		       << ") in call to " << cs.getCalledFunction()->getName() << ". Skipping effect.\n";
+		return false;
+	}
+
 	if (!argPos.isAfterArgPosition())
 		return addExternalMemoryRead(cs.getArgument(idx)->stripPointerCasts(), summary, caller, ptrAnalysis, refEffect.onReachableMemory());
 	else
@@ -234,9 +247,9 @@ bool updateSummaryForExternalCall(const Instruction* inst, const Function* f, Mo
 	auto modRefSummary = modRefTable.lookup(f->getName());
 	if (modRefSummary == nullptr)
 	{
-		errs() << modRefTable.size() << "\n";
-		errs() << "Missing entry in ModRefTable: " << f->getName() << "\n";
-		llvm_unreachable("Consider adding the function to modref annotations");
+		errs() << "Warning: Missing entry in ModRefTable: " << f->getName() << "\n";
+		errs() << "Treating as no effect. Add annotation to modref config for more precise analysis.\n";
+		return false;
 	}
 
 	bool changed = false;

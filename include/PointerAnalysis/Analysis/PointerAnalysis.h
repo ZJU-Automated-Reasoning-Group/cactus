@@ -81,7 +81,9 @@ public:
 		assert(val != nullptr);
 
 		auto ptrs = ptrManager.getPointersWithValue(val->stripPointerCasts());
-		assert(!ptrs.empty());
+		if (ptrs.empty()) {
+			return PtsSet::getEmptySet();
+		}
 
 		std::vector<PtsSet> pSets;
 		pSets.reserve(ptrs.size());

@@ -27,8 +27,11 @@ StorePruner::ObjectSet StorePruner::getRootSet(const Store& store, const Program
 	for (auto argVal: callNode)
 	{
 		auto argPtr = ptrManager.getPointer(ctx, argVal);
-		assert(argPtr != nullptr);
-
+		if (argPtr == nullptr) {
+			errs() << "Warning: Null pointer found in StorePruner::getRootSet. Skipping argument.\n";
+			continue;
+		}
+		
 		auto argSet = env.lookup(argPtr);
 		ret.insert(argSet.begin(), argSet.end());
 	}

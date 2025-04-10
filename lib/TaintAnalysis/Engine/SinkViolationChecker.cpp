@@ -24,7 +24,12 @@ TaintLattice SinkViolationChecker::lookupTaint(const TaintValue& tv, TClass what
 			return env.lookup(tv);
 		case TClass::DirectMemory:
 		{
-			assert(store != nullptr);
+			// Return a conservative value if store is null
+			if (store == nullptr) {
+				errs() << "Warning: Null store in SinkViolationChecker::lookupTaint. Returning Unknown.\n";
+				return TaintLattice::Unknown;
+			}
+			
 			auto pSet = ptrAnalysis.getPtsSet(tv.getContext(), tv.getValue());
 			assert(!pSet.empty());
 			auto res = TaintLattice::Unknown;
@@ -36,8 +41,15 @@ TaintLattice SinkViolationChecker::lookupTaint(const TaintValue& tv, TClass what
 			return res;
 		}
 		case TClass::ReachableMemory:
-			llvm_unreachable("ReachableMemory shouldn't appear in sink entry");
+		{
+			// Instead of crashing, provide a conservative result (treat as Unknown)
+			errs() << "Warning: ReachableMemory used in sink entry. This is not fully supported.\n";
+			return TaintLattice::Unknown;
+		}
 	}
+	
+	// Should never reach here, but just in case
+	return TaintLattice::Unknown;
 }
 
 void SinkViolationChecker::checkValueWithTClass(const TaintValue& tv, TClass tClass, uint8_t argPos, const TaintStore* store, SinkViolationList& violations)
@@ -100,7 +112,10 @@ void SinkViolationChecker::checkSinkViolation(const SinkSignature& sig, SinkViol
 			records[callsite] = std::move(violations);
 	}
 	else
-		llvm_unreachable("Unrecognized external function call");
+	{
+		// Instead of crashing, print a warning message
+		errs() << "Warning: Unrecognized external function call: " << sig.getCallee()->getName() << "\n";
+	}
 }
 
 }

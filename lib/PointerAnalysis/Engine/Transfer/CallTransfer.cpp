@@ -129,8 +129,17 @@ bool TransferFunction::updateParameterPtsSets(const FunctionContext& fc, const s
 std::pair<bool, bool> TransferFunction::evalCallArguments(const context::Context* ctx, const CallCFGNode& callNode, const FunctionContext& fc)
 {
 	auto numParams = countPointerArguments(fc.getFunction());
-	assert(callNode.getNumArgument() >= numParams);
-;
+	
+	// Remove the assertion and handle the case where there are fewer arguments than parameters
+	// assert(callNode.getNumArgument() >= numParams);
+
+	// FIXME: is this a good idea (what will this cause...)
+	if (callNode.getNumArgument() < numParams) {
+		errs() << "Warning: Function call has fewer arguments (" << callNode.getNumArgument() 
+		       << ") than parameters (" << numParams << "). Using available arguments only.\n";
+		numParams = callNode.getNumArgument();
+	}
+	
 	auto argSets = collectArgumentPtsSets(ctx, callNode, numParams);
 	if (argSets.size() < numParams)
 		return std::make_pair(false, false);

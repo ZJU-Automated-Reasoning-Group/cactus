@@ -155,8 +155,9 @@ tpa::CFGNode* InstructionTranslator::visitBitCastInst(BitCastInst& bcInst)
 
 tpa::CFGNode* InstructionTranslator::handleUnsupportedInst(const Instruction& inst)
 {
-	errs() << "inst = " << inst << "\n";
-	llvm_unreachable("instruction not supported");
+	errs() << "Warning: Unsupported instruction encountered: " << inst << "\n";
+	errs() << "Treating as no-op. Analysis results may be less precise.\n";
+	return nullptr;
 }
 
 tpa::CFGNode* InstructionTranslator::visitExtractValueInst(ExtractValueInst& inst)
