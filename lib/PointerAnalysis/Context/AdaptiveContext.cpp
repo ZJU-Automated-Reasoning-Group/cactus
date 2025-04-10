@@ -1,3 +1,9 @@
+/*
+ * AdaptiveContext.cpp
+ *
+ * Selective approach that only tracks "important" call sites
+ */
+
 #include "Context/AdaptiveContext.h"
 
 using namespace llvm;

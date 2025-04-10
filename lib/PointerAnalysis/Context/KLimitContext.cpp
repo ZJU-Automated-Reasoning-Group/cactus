@@ -1,3 +1,10 @@
+/*
+ * KLimitContext.cpp
+ *
+ * Limits context depth to a configurable k value
+ * When the context depth reaches k, no more contexts are pushed (effectively merging paths)
+ */
+
 #include "Context/KLimitContext.h"
 #include "Context/ProgramPoint.h"
 

@@ -1,4 +1,3 @@
-
 include_directories (${tpa_SOURCE_DIR}/include)
 add_subdirectory (global-pts)
 add_subdirectory (dot-pointer-cfg)
@@ -13,3 +12,7 @@ add_subdirectory (taint-check)
 add_subdirectory (vkcfa-taint)
 add_subdirectory (scripts)
 add_subdirectory (Sparrow)
+add_subdirectory (SABER)
+add_subdirectory (WPA)
+# DDA tool needs more work - commenting out for now
+# add_subdirectory (DDA)

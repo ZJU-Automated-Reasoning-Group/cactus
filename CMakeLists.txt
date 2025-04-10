@@ -33,6 +33,11 @@ else()
     include_directories(${LLVM_INCLUDE_DIRS})
     link_directories(${LLVM_LIBRARY_DIRS})
     add_definitions(${LLVM_DEFINITIONS})
+
+    # Enable ExternC for C linkage
+    add_definitions(-D__STDC_LIMIT_MACROS)
+    add_definitions(-D__STDC_CONSTANT_MACROS)
+
     message(STATUS "definitions in LLVM ${LLVM_DEFINITIONS}")
 endif()
 
@@ -57,6 +62,9 @@ configure_file(config/taint.config taint.config COPYONLY)
 
 include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${CMAKE_CURRENT_SOURCE_DIR}/include/SVF
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/SVF/CUDD
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/SVF/CUDD/CUDD
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/lib
