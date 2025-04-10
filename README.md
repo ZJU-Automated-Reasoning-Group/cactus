@@ -1,6 +1,6 @@
 # Sparrow
 
-Sparrow is a powerful analysis tool designed to work with LLVM bitcode, providing advanced capabilities for call graph construction, pointer analysis, and taint analysis.
+Sparrow is a powerful static analysis framework designed to work with LLVM bitcode, providing advanced capabilities for call graph construction, pointer analysis, and taint analysis.
 
 ## Build Instructions
 
@@ -10,125 +10,116 @@ To build Sparrow, follow these steps:
 cd sparrow
 mkdir build && cd build
 cmake ../ -DLLVM_BUILD_PATH=[LLVM3.6.2 Build Path]
-make -jN
+make -j$(nproc)
 ```
 
-Replace `[LLVM3.6.2 Build Path]` with the path to your LLVM 3.6.2 build.
+Replace `[LLVM3.6.2 Build Path]` with the path to your LLVM 3.6.2 build directory.
+
+## Requirements
+
+- LLVM 3.6.2
+- C++14 compliant compiler
+- Python 3
+- CMake 3.4.3 or newer
 
 ## Usage
 
-After building, the executable is located in the `build/bin` folder. To use Sparrow, you need to compile your source code to LLVM bitcode first. For binary code, use `plankton-dasm` to lift it to LLVM bitcode.
+After building, the executable will be located in the `build/bin` folder. To use Sparrow, you need to compile your source code to LLVM bitcode first.
 
 Run Sparrow with:
 
 ```bash
-./sparrow your_project.bc
+./sparrow your_project.bc [options]
 ```
 
 ## Core Functionalities
 
-Sparrow provides three core analysis capabilities:
+Sparrow provides several core analysis capabilities:
 
 ### 1. Call Graph Construction
-- **Description**: Constructs a call graph by resolving indirect calls.
+- **Description**: Constructs a precise call graph by resolving indirect calls through function pointer analysis.
 - **Components**:
-  - `lib/IndirectCallResolver`: Core call graph construction
-  - `tools/callgraph`: LLVM pass implementation
+  - `lib/FPAnalysis`: Core function pointer and call graph construction
+  - `include/FPAnalysis`: Analysis interface definitions, which contains the DyckAA alias analysis and a lightweight FP analysis.
 
 ### 2. Advanced Pointer Analysis
-- **Description**: Implements Andersen-style pointer analysis to track pointer relationships and aliasing.
+
+- **Description**: Implements flow- and context-sesntiive Andersen-style pointer analysis
 - **Components**:
-  - `lib/PointerAnalysis`: Pointer analysis engine
-  - `tools/analysis-passes/PointerAnalysisPass.cpp`: LLVM integration
-  - `include/Analysis/PointsTo.h`: Analysis interface
+  - `lib/PointerAnalysis`: Pointer analysis engine with multiple precision levels (flow, context)
+  - `include/PointerAnalysis`: Analysis interface definitions
 
-Use with:
+### 3. SVF-based Pointer Analyses
+- **Description**: Incorporates SVF (Static Value-Flow Analysis) framework for precise pointer analysis
+- **Components**:
+  - `lib/SVF/WPA`: Various pointer analysis implementations including:
+    - Andersen's inclusion-based analysis
+    - Wave propagation optimization for Andersen's
+    - Steensgaard's unification-based analysis
+    - Flow-sensitive analysis
+  - `lib/SVF/SABER`: Static bug checkers for memory issues like:
+    - Memory leaks
+    - Use-after-free
+    - Double-free
+  - `include/SVF`: Interface definitions for SVF analyses
 
-```bash
-./sparrow your_project.bc -pointer-analysis -dump-report
-```
-
-### 3. Taint Analysis Framework
-- **Description**: Tracks the flow of potentially malicious or sensitive data.
+### 4. Taint Analysis Framework
+- **Description**: Tracks the flow of potentially malicious or sensitive data throughout the program.
 - **Components**:
   - `lib/TaintAnalysis`: Taint propagation engine
-  - `tools/analysis-passes/TaintAnalysisPass.cpp`: Data flow tracking
-  - `include/Analysis/Taint.h`: Taint configuration API
+  - `include/TaintAnalysis`: Taint analysis interface
+  - `config/taint.config`: Default taint configuration
 
-Enable with:
+### 5. Dynamic Analysis Support
+- **Description**: Enables runtime verification and hybrid static-dynamic analyses
+- **Components**:
+  - `lib/Dynamic/Analysis`: Runtime pointer analysis and memory tracking
+  - `lib/Dynamic/Instrument`: Program instrumentation for runtime monitoring
+  - `lib/Dynamic/Runtime`: Runtime libraries for dynamic analysis
+  - `lib/Dynamic/Log`: Log processing for dynamic execution traces
+  - `include/Dynamic`: Interface definitions for dynamic analyses
 
-```bash
-./sparrow your_project.bc -taint-analysis -taint-config=config.yaml
-```
+### 6. Numerical Analysis
+- **Description**: Performs numerical range analysis to determine possible value ranges for variables
+- **Components**:
+  - `lib/Numerics/RangeAnalysis`: Implementation of intra-procedural range analysis
+  - `include/Numerics`: Interface definitions for numerical analyses
 
-## Additional Commands
+## Command Line Options
 
-- **Dump Transformed BC**: Remove indirect calls for static analysis.
+- **Function Pointer Analysis**: The default analysis performed by Sparrow.
+
+- **Dump Transformed BC**: Remove indirect calls for better static analysis.
   ```bash
   ./sparrow your_project.bc -dump-bc
   ```
+  This generates a `[input_name]_sparrow.bc` file with indirect calls replaced.
 
 - **Dump Indirect Call Results**: Outputs indirect call targets to `indirect-call-targets.txt`.
   ```bash
   ./sparrow your_project.bc -dump-report
   ```
 
-The report includes:
-- File name of the call site
-- Function name where the call site is
+## Understanding the Report
+
+The `indirect-call-targets.txt` report includes:
+- File path of the call site
+- Function name containing the call site
 - Line number of the call site
-- Number of callees
-- Function names of the callees
+- Number of target callees
+- Function names of the target callees
 
-## Reading the Report
+## Configuration Files
 
-To read the `indirect-call-targets.txt` file, use the following code snippet:
+Sparrow uses several configuration files in the `config/` directory:
+- `ptr.config`: Configuration for pointer analysis
+- `taint.config`: Sources, sinks, and propagation rules for taint analysis
+- `modref.config`: Memory reference analysis configuration
 
-```cpp
-if (filePath.empty()) {
-    filePath = "indirect-call-targets.txt"; // Default file path
-}
+## Project Structure
 
-std::ifstream file(filePath);
-if (file.is_open()) {
-    bool done = false;
-    while (!done) {
-        std::string file_path;
-        std::getline(file, file_path);
-
-        std::string caller;
-        std::getline(file, caller);
-
-        std::string icall_line_str;
-        std::getline(file, icall_line_str);
-        std::string callee_size_str;
-        std::getline(file, callee_size_str);
-        int icall_line;
-        int callee_size;
-
-        try {
-            icall_line = std::stoi(icall_line_str);
-            callee_size = std::stoi(callee_size_str);
-        } catch (const std::invalid_argument& e) {
-            std::cout << "Invalid argument: " << e.what() << std::endl;
-            return;
-        } catch (const std::out_of_range& e) {
-            std::cout << "Out of range: " << e.what() << std::endl;
-            return;
-        }
-
-        std::vector<std::string> callees_names;
-        for (int i = 0; i < callee_size; i++) {
-            std::string line;
-            std::getline(file, line);
-            callees_names.push_back(line);
-        }
-
-        if (file.peek() == EOF) {
-            done = true;
-        }
-    }
-} else {
-    std::cerr << "Unable to open file: " << filePath << std::endl;
-}
-```
+- `lib/`: Core analysis libraries
+- `include/`: Header files for analysis libraries
+- `tools/`: Command-line tools and analysis passes
+- `config/`: Configuration files for various analyses
+- `benchmark/`: Benchmark programs for testing
