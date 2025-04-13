@@ -10,7 +10,7 @@ void TransferFunction::strongUpdateStore(const MemoryObject* obj, PtsSet pSet, S
 {
 	if (!obj->isSpecialObject())
 		store.strongUpdate(obj, pSet);
-	// TODO: in the else branch, report NULL-pointer dereference to the user
+	// TODO: in the else branch, report NULL-pointer dereference to the user?
 }
 
 void TransferFunction::weakUpdateStore(PtsSet dstSet, PtsSet srcSet, Store& store)
@@ -38,6 +38,7 @@ void TransferFunction::evalStore(const Pointer* dst, const Pointer* src, const P
 
 	auto dstObj = *dstSet.begin();
 	// If the store target is precise and the target location is not unknown
+	// TOOD: if the dstSet may grow, under what conditiosn can we perform the strong update here?
 	if (dstSet.size() == 1 && !dstObj->isSummaryObject())
 		strongUpdateStore(dstObj, srcSet, store);
 	else

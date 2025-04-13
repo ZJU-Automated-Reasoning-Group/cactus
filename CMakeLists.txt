@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.4.3)
-project(Sparrow)
+project(Cactus)
 set(CMAKE_CXX_STANDARD 14)
 set(CMAKE_CXX_FLAGS "-fPIC -std=gnu++14 -O0 -fno-rtti -Wno-deprecated")
 

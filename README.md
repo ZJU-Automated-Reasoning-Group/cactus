@@ -1,13 +1,13 @@
-# Sparrow
+# Cactus
 
-Sparrow is a powerful static analysis framework designed to work with LLVM bitcode, providing advanced capabilities for call graph construction, pointer analysis, and taint analysis.
+Cactus is a powerful static analysis framework designed to work with LLVM bitcode, providing advanced capabilities for call graph construction, pointer analysis, and taint analysis.
 
 ## Build Instructions
 
-To build Sparrow, follow these steps:
+To build Cactus, follow these steps:
 
 ```bash
-cd sparrow
+cd cactus
 mkdir build && cd build
 cmake ../ -DLLVM_BUILD_PATH=[LLVM3.6.2 Build Path]
 make -j$(nproc)
@@ -24,27 +24,73 @@ Replace `[LLVM3.6.2 Build Path]` with the path to your LLVM 3.6.2 build director
 
 ## Usage
 
-After building, the executable will be located in the `build/bin` folder. To use Sparrow, you need to compile your source code to LLVM bitcode first.
+After building, the executables will be located in the `build/bin` folder. 
 
-Run Sparrow with:
+## Available Tools
+
+Cactus provides several specialized analysis tools:
+
+### Sparrow
+A call graph construction tool focusing on resolving indirect calls through function pointer analysis.
 
 ```bash
 ./sparrow your_project.bc [options]
 ```
 
+Options:
+- `-dump-bc`: Dumps the transformed bitcode with resolved indirect calls
+- `-dump-report`: Outputs indirect call targets to `indirect-call-targets.txt`
+
+### WPA (Whole Program Analysis)
+Implements pointer analysis algorithms from the SVF framework.
+
+```bash
+./wpa your_project.bc [options]
+```
+
+### SABER
+Static bug checker for memory issues like leaks, use-after-free, and double-free problems.
+
+```bash
+./saber your_project.bc [options]
+```
+
+### taint-check
+Performs taint analysis to identify potential security vulnerabilities.
+
+```bash
+./taint-check your_project.bc [options]
+```
+
+### Other Tools
+- `global-pts`: Global points-to analysis
+- `pts-dump`: Points-to information dump
+- `pts-inst`: Points-to instrumentation
+- `pts-verify`: Points-to verification
+- `vkcfa-taint`: Value and context flow-aware taint analysis
+- `table` and `table-check`: Analysis table generation and verification
+
 ## Core Functionalities
 
-Sparrow provides several core analysis capabilities:
+Cactus provides several core analysis capabilities:
 
-### 1. Call Graph Construction
+### 1. Call Graph Construction (Sparrow)
 - **Description**: Constructs a precise call graph by resolving indirect calls through function pointer analysis.
 - **Components**:
   - `lib/FPAnalysis`: Core function pointer and call graph construction
   - `include/FPAnalysis`: Analysis interface definitions, which contains the DyckAA alias analysis and a lightweight FP analysis.
 
+The `indirect-call-targets.txt` report includes:
+- File path of the call site
+- Function name containing the call site
+- Line number of the call site
+- Number of target callees
+- Function names of the target callees
+
+
 ### 2. Advanced Pointer Analysis
 
-- **Description**: Implements flow- and context-sesntiive Andersen-style pointer analysis
+- **Description**: Implements flow- and context-sensitive Andersen-style pointer analysis
 - **Components**:
   - `lib/PointerAnalysis`: Pointer analysis engine with multiple precision levels (flow, context)
   - `include/PointerAnalysis`: Analysis interface definitions
@@ -70,6 +116,8 @@ Sparrow provides several core analysis capabilities:
   - `include/TaintAnalysis`: Taint analysis interface
   - `config/taint.config`: Default taint configuration
 
+Use with `-taint-config [file]` to specify a custom configuration file.
+
 ### 5. Dynamic Analysis Support
 - **Description**: Enables runtime verification and hybrid static-dynamic analyses
 - **Components**:
@@ -87,95 +135,29 @@ Sparrow provides several core analysis capabilities:
 
 ## Command Line Options
 
-Sparrow supports a variety of command line options for different analysis types and configurations:
+Cactus tools support various command line options:
 
-### Basic Options
-- `-help`: Display available command line options
-- `-stats`: Display execution statistics
-- `-time-passes`: Time each analysis pass and print results
+### Common Options
+- `-config-file [path]`: Specify a configuration file
+- `-help`: Display available options
+- `-stats`: Print analysis statistics
 
-### Analysis Options
-- **Function Pointer Analysis** (default): Performs context-sensitive function pointer analysis
-  ```bash
-  ./sparrow your_project.bc
-  ```
+### Sparrow Options
+- `-dump-bc`: Dump transformed bitcode
+- `-dump-report`: Dump indirect call information
 
-- **Pointer Analysis**: (TBD)
-  ```bash
-   your_project.bc -ptr-analysis [type]
-  ```
-  Where `[type]` can be one of:
-  - `andersen`: Andersen's inclusion-based analysis (faster, less precise)
-  - `steens`: Steensgaard's unification-based analysis (fastest, least precise)
-  - `flow-sensitive`: Flow-sensitive analysis (more precise, slower)
-  - `context-sensitive`: Context-sensitive analysis (most precise, slowest)
+### Taint Analysis Options
+- `-taint-analysis`: Enable taint analysis
+- `-taint-config [file]`: Specify custom taint configuration
 
-- **Taint Analysis**:
-  ```bash
-  ./sparrow your_project.bc -taint-analysis
-  ```
-  Use with `-taint-config [file]` to specify a custom configuration file.
-
-- **Numerical Analysis**:
-  ```bash
-  ./sparrow your_project.bc -range-analysis
-  ```
-
-### Output Options
-- **Dump Transformed BC**: Remove indirect calls for better static analysis.
-  ```bash
-  ./sparrow your_project.bc -dump-bc
-  ```
-  This generates a `[input_name]_sparrow.bc` file with indirect calls replaced.
-
-- **Dump Indirect Call Results**: Outputs indirect call targets to `indirect-call-targets.txt`.
-  ```bash
-  ./sparrow your_project.bc -dump-report
-  ```
-
-- **Output Formats**:
-  ```bash
-  ./sparrow your_project.bc -output-format [format]
-  ```
-  Where `[format]` can be:
-  - `text`: Human-readable text (default)
-  - `json`: JSON format
-  - `csv`: CSV format
-
-### Configuration Options
-- **Load Custom Configuration**:
-  ```bash
-  ./sparrow your_project.bc -config-file [path]
-  ```
-
-- **Set Analysis Precision**:
-  ```bash
-  ./sparrow your_project.bc -precision [level]
-  ```
-  Where `[level]` can be:
-  - `low`: Faster analysis, less precise results
-  - `medium`: Balanced precision and performance
-  - `high`: Higher precision, slower performance
-
-### Parallelization Options
-- **Set Thread Count**:
-  ```bash
-  ./sparrow your_project.bc -j [threads]
-  ```
-  Where `[threads]` is the number of threads to use for parallel analyses.
-
-## Understanding the Report
-
-The `indirect-call-targets.txt` report includes:
-- File path of the call site
-- Function name containing the call site
-- Line number of the call site
-- Number of target callees
-- Function names of the target callees
+### Pointer Analysis Options
+- `-ander`: Use Andersen's pointer analysis
+- `-sfs`: Use flow-sensitive pointer analysis
+- `-wpa`: Enable whole program analysis
 
 ## Configuration Files
 
-Sparrow uses several configuration files in the `config/` directory:
+Cactus uses several configuration files in the `config/` directory:
 - `ptr.config`: Configuration for pointer analysis
 - `taint.config`: Sources, sinks, and propagation rules for taint analysis
 - `modref.config`: Memory reference analysis configuration
@@ -185,5 +167,10 @@ Sparrow uses several configuration files in the `config/` directory:
 - `lib/`: Core analysis libraries
 - `include/`: Header files for analysis libraries
 - `tools/`: Command-line tools and analysis passes
+  - `Sparrow/`: Call graph construction
+  - `WPA/`: Whole program analysis
+  - `SABER/`: Memory bug detection
+  - `taint-check/`: Taint analysis
+  - And many more specialized tools
 - `config/`: Configuration files for various analyses
 - `benchmark/`: Benchmark programs for testing
