@@ -1,8 +1,8 @@
 
 
-#include "SparrowUtils/CPPUtil.h"
+#include "Util/SparrowUtils/CPPUtil.h"
 #include <cxxabi.h>   // for demangling
-#include "SparrowUtils/BasicTypes.h"
+#include "Util/SparrowUtils/BasicTypes.h"
 #include <llvm/IR/GlobalVariable.h>	// for GlobalVariable
 
 using namespace llvm;

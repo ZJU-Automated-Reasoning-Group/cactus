@@ -138,4 +138,16 @@ PointerManager::PointerVector PointerManager::getPointersWithValue(const llvm::V
 	return vec;
 }
 
+std::vector<const Pointer*> PointerManager::getAllPointers() const
+{
+    std::vector<const Pointer*> result;
+    result.reserve(ptrSet.size());
+    
+    for (const auto& ptr : ptrSet) {
+        result.push_back(&ptr);
+    }
+    
+    return result;
+}
+
 }

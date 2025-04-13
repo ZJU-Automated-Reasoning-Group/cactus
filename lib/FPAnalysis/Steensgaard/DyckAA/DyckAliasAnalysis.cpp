@@ -14,8 +14,8 @@
 #include "FPAnalysis/Steensgaard/DyckAA/EdgeLabel.h"
 #include "FPAnalysis/TypeAnalysis.h"
 
-#include "SparrowUtils/Profiler.h"
-#include "SparrowUtils/Common.h"
+#include "Util/SparrowUtils/Profiler.h"
+#include "Util/SparrowUtils/Common.h"
 
 
 using namespace Steensgaard;

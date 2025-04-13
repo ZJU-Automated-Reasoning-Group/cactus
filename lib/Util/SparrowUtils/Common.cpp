@@ -17,7 +17,7 @@
 #include <llvm/Support/raw_os_ostream.h>
 #include <llvm/Support/Options.h>
 
-#include "SparrowUtils/Common.h"
+#include "Util/SparrowUtils/Common.h"
 
 
 static cl::opt<bool> lifter_dbg_mode("sparrow-lifter-dbg-info",

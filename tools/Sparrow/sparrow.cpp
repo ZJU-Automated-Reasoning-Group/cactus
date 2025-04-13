@@ -20,7 +20,7 @@
 #include "llvm/Bitcode/ReaderWriter.h"
 
 #include "FPAnalysis/FunPtrAnalysis.h"
-#include "SparrowUtils/Profiler.h"
+#include "Util/SparrowUtils/Profiler.h"
 
 
 

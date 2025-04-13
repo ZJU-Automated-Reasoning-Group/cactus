@@ -19,7 +19,7 @@
 #include <llvm/Support/CommandLine.h>
 #include <llvm/Support/Debug.h>
 
-#include "SparrowUtils/ProgressBar.h"
+#include "Util/SparrowUtils/ProgressBar.h"
 
 using namespace Sparrow;
 using namespace llvm;

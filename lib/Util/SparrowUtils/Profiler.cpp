@@ -1,5 +1,5 @@
 #include "llvm/Support/raw_ostream.h"
-#include "SparrowUtils/Profiler.h"
+#include "Util/SparrowUtils/Profiler.h"
 
 using namespace Sparrow;
 using namespace llvm;

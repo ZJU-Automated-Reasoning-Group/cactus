@@ -1,7 +1,7 @@
 #pragma once
 
 
-#include "SparrowUtils/BasicTypes.h"
+#include "Util/SparrowUtils/BasicTypes.h"
 #include <llvm/ADT/GraphTraits.h>
 #include <llvm/ADT/STLExtras.h>			// for mapped_iter
 

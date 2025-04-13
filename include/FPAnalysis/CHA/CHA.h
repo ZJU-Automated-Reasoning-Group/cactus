@@ -1,6 +1,6 @@
 #pragma once
 
-#include "SparrowUtils/GenericGraph.h"
+#include "Util/SparrowUtils/GenericGraph.h"
 
 class CHNode;
 

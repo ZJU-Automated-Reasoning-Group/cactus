@@ -4,15 +4,15 @@
 #include <fstream>
 #include <iostream>
 #include <iomanip>   // setw() for formatting cout
-#include "SparrowUtils/CPPUtil.h"
+#include "Util/SparrowUtils/CPPUtil.h"
 #include <assert.h>
 #include <stack>
 #include "FPAnalysis/CHA/CHA.h"
 #include <llvm/Support/CommandLine.h>
 #include <llvm/IR/DebugInfo.h> // for debuginfo like DILocation
 #include <llvm/Support/DOTGraphTraits.h>	// for dot graph traits
-#include "SparrowUtils/GraphUtil.h"
-#include "SparrowUtils/AnalysisUtil.h"
+#include "Util/SparrowUtils/GraphUtil.h"
+#include "Util/SparrowUtils/AnalysisUtil.h"
 
 using namespace llvm;
 using namespace cppUtil;

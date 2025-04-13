@@ -4,7 +4,7 @@
 #include "EdgeLabel.h"
 
 #include "FPAnalysis/TypeAnalysis.h"
-#include "SparrowUtils/ProgressBar.h"
+#include "Util/SparrowUtils/ProgressBar.h"
 
 #include <unordered_map>
 #include <map>

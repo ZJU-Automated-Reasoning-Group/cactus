@@ -1,7 +1,7 @@
-
 set (PointerAnalysisSourceCodes
 	Analysis/GlobalPointerAnalysis.cpp
 	Analysis/SemiSparsePointerAnalysis.cpp
+	Analysis/PointerAnalysisQueries.cpp
 	Context/AdaptiveContext.cpp
 	Context/Context.cpp
 	Context/KLimitContext.cpp

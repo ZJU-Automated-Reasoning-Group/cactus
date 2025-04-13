@@ -13,8 +13,8 @@
 #include "llvm/IR/InstIterator.h"
 #include "llvm/Transforms/Utils/Cloning.h"
 
-#include "SparrowUtils/Common.h"
-#include "SparrowUtils/Profiler.h"
+#include "Util/SparrowUtils/Common.h"
+#include "Util/SparrowUtils/Profiler.h"
 
 #include "FPAnalysis/FunPtrAnalysis.h"
 #include "FPAnalysis/TypeAnalysis.h"

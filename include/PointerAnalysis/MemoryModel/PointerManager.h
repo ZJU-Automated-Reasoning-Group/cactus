@@ -43,8 +43,11 @@ public:
 	const Pointer* getOrCreatePointer(const context::Context* ctx, const llvm::Value* val);
 	// Return a Pointer corresponds to (ctx, val). If not exist, return NULL
 	const Pointer* getPointer(const context::Context* ctx, const llvm::Value* val) const;
-	// Return a vector of Pointers, whose elements corresponds to the same llvm::Value. Return NULL if not such Pointer is found
+	// Return a vector of Pointers, whose elements corresponds to the same llvm::Value. Return empty vector if no such Pointer is found
 	PointerVector getPointersWithValue(const llvm::Value* val) const;
+	
+	// Return all pointers managed by this PointerManager
+	std::vector<const Pointer*> getAllPointers() const;
 };
 
 }
