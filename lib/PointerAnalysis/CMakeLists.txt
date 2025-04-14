@@ -8,6 +8,8 @@ set (PointerAnalysisSourceCodes
 	Context/Context.cpp
 	Context/KLimitContext.cpp
 	Context/SelectiveKCFA.cpp
+	Context/IntrospectiveSelectiveKCFA.cpp
+	Engine/IntrospectiveContextSensitivity.cpp
 	Engine/ContextSensitivity.cpp
 	Engine/ExternalCallAnalysis.cpp
 	Engine/Initializer.cpp
