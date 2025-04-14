@@ -8,11 +8,14 @@ add_subdirectory(TaintAnalysis)
 add_subdirectory(SVF)
 
 file (GLOB SOURCES
-        FPAnalysis/Steensgaard/DyckCG/*.cpp
-        FPAnalysis/Steensgaard/DyckAA/*.cpp
-        FPAnalysis/Steensgaard/DyckGraph/*.cpp
+        FPAnalysis/Canary/DyckCG/*.cpp
+        FPAnalysis/Canary/DyckAA/*.cpp
+        FPAnalysis/Canary/DyckGraph/*.cpp
         FPAnalysis/*.cpp
         FPAnalysis/CHA/*.cpp
+        # FIXME: some files in SRAA and OBAA are redundant with the ones in lib/OBAA
+        SRAA/*.cpp
+        OBAA/*.cpp
         )
 
 add_library(SparrowLib STATIC ${SOURCES})
@@ -25,3 +28,4 @@ if(DEFINED IN_SOURCE_BUILD)
     add_dependencies(SparrowLib intrinsics_gen)
 endif()
 
+include(CTestUseLaunchers)

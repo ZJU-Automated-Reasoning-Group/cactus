@@ -18,7 +18,7 @@
 
 #include "FPAnalysis/FunPtrAnalysis.h"
 #include "FPAnalysis/TypeAnalysis.h"
-#include "FPAnalysis/Steensgaard/DyckAA/DyckAliasAnalysis.h"
+#include "FPAnalysis/Canary/DyckAA/DyckAliasAnalysis.h"
 
 static llvm::RegisterPass<FPAnalysis> X("cg", "Function Pointer Analysis", true, false);
 
@@ -55,7 +55,7 @@ void FPAnalysis::getAnalysisUsage(AnalysisUsage& au) const{
     au.setPreservesAll();
     au.addRequired<ScalarEvolution>();
     au.addRequired<LoopInfo>();
-    au.addRequired<Steensgaard::DyckAliasAnalysis>();
+    au.addRequired<Canary::DyckAliasAnalysis>();
 }
 
 void FPAnalysis::init(Module& M) {
@@ -71,7 +71,7 @@ void FPAnalysis::init(Module& M) {
     iCallResultBySimpleFP=simpleAA->getSimpleFPICallResult();
 
     latestICallResult=iCallResultByMLTA;
-    dyckAA=&getAnalysis<Steensgaard::DyckAliasAnalysis>();
+    dyckAA=&getAnalysis<Canary::DyckAliasAnalysis>();
     chgraph = new CHGraph();
     chgraph->buildCHG(M);
 
@@ -163,7 +163,7 @@ bool FPAnalysis::runOnModule(Module& M) {
 
     init(M);
 
-    performSteensgaardRefinement();
+    performCanaryRefinement();
 
     //TimeMemProfiler.create_snapshot();
     //TimeMemProfiler.print_snapshot_result(outs(), "Indirect Call Resolution");
@@ -179,19 +179,19 @@ bool FPAnalysis::runOnModule(Module& M) {
     return true;
 }
 
-void FPAnalysis::performSteensgaardRefinement() {
+void FPAnalysis::performCanaryRefinement() {
 
     dyckAA->performDyckAliasAnalysis(*M);
-    iCallResultBySteensgaard=dyckAA->getCanaryFunctionPointerResult();
+    iCallResultByCanary=dyckAA->getCanaryFunctionPointerResult();
     if(sound_mode){
-        backupUnsoundResults(iCallResultBySteensgaard, latestICallResult);
+        backupUnsoundResults(iCallResultByCanary, latestICallResult);
     }
 
     if(EnableSyntaxRefinement){
-        iCallResultBySteensgaard=synBasedRefinement(iCallResultBySteensgaard);
+        iCallResultByCanary=synBasedRefinement(iCallResultByCanary);
     }
 
-    latestICallResult=iCallResultBySteensgaard;
+    latestICallResult=iCallResultByCanary;
 }
 
 

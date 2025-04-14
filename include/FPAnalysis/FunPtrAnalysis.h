@@ -6,10 +6,10 @@
 #include <llvm/Analysis/AliasAnalysis.h>
 #include <llvm/Analysis/LoopInfo.h>
 
-#include "Steensgaard/DyckAA/DyckAliasAnalysis.h"
+#include "FPAnalysis/Canary/DyckAA/DyckAliasAnalysis.h"
 #include "FPAnalysis/CHA/CHA.h"
-#include "TypeAnalysis.h"
-#include "SimpleFPAnalysis.h"
+#include "FPAnalysis/TypeAnalysis.h"
+#include "FPAnalysis/SimpleFPAnalysis.h"
 
 
 using namespace llvm;
@@ -22,7 +22,7 @@ private:
 
     Module* M;
 
-    Steensgaard::DyckAliasAnalysis* dyckAA=nullptr;
+    Canary::DyckAliasAnalysis* dyckAA=nullptr;
 
     TypeAnalysis* typeAA=nullptr;
 
@@ -37,7 +37,7 @@ private:
 
     std::map<CallInst*,std::set<llvm::Function*>> iCallResultBySimpleFP; // precisely top-level function pointers
 
-    std::map<CallInst*,std::set<llvm::Function*>> iCallResultBySteensgaard; // steensgaard's pointer analysis
+    std::map<CallInst*,std::set<llvm::Function*>> iCallResultByCanary; // canary's pointer analysis
 
     std::map<CallInst*,std::set<llvm::Function*>> iCallResultBySyntax; // heuristics
 
@@ -82,7 +82,7 @@ private:
 
     void init(Module& );
 
-    void performSteensgaardRefinement();
+    void performCanaryRefinement();
 
     //void performAndersenRefinement();
 

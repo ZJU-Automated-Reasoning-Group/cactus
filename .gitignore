@@ -1,3 +1,7 @@
+.clangd
+compiler_commands.json
+.cache
+.callgrind
 .vscode
 paper
 .settings

@@ -26,6 +26,22 @@ Replace `[LLVM3.6.2 Build Path]` with the path to your LLVM 3.6.2 build director
 
 After building, the executables will be located in the `build/bin` folder. 
 
+### Common Command-Line Options
+
+Most Cactus tools support the following common options:
+
+```bash
+-ptr-config <file>      # Specify a custom ptr.config file
+-taint-config <file>    # Specify a custom taint.config file 
+-modref-config <file>   # Specify a custom modref.config file
+-dot-callgraph          # Generate a DOT file of the call graph
+-dump-ir                # Dump the transformed IR
+-verbose                # Enable verbose output
+-stats                  # Print analysis statistics
+```
+
+Each tool may have additional specific options. Use `--help` with any tool to see available options.
+
 ## Available Tools
 
 Cactus provides several specialized analysis tools:
@@ -127,50 +143,88 @@ Use with `-taint-config [file]` to specify a custom configuration file.
   - `lib/Dynamic/Log`: Log processing for dynamic execution traces
   - `include/Dynamic`: Interface definitions for dynamic analyses
 
-### 6. Numerical Analysis
-- **Description**: Performs numerical range analysis to determine possible value ranges for variables
+### 6. SRAA
+- **Description**: Strict Relation Alias Analysis (SRAA) - A powerful alias analysis technique that identifies non-aliasing pointers by analyzing their strict mathematical relationships
 - **Components**:
-  - `lib/Numerics/RangeAnalysis`: Implementation of intra-procedural range analysis
-  - `include/Numerics`: Interface definitions for numerical analyses
-
-## Command Line Options
-
-Cactus tools support various command line options:
-
-### Common Options
-- `-config-file [path]`: Specify a configuration file
-- `-help`: Display available options
-- `-stats`: Print analysis statistics
-
-### Sparrow Options
-- `-dump-bc`: Dump transformed bitcode
-- `-dump-report`: Dump indirect call information
-
-### Taint Analysis Options
-- `-taint-analysis`: Enable taint analysis
-- `-taint-config [file]`: Specify custom taint configuration
-
-### Pointer Analysis Options
-- `-ander`: Use Andersen's pointer analysis
-- `-sfs`: Use flow-sensitive pointer analysis
-- `-wpa`: Enable whole program analysis
+  - `lib/SRAA/StrictRelationAliasAnalysis.cpp`: Core implementation of the SRAA algorithm
+  - `lib/SRAA/RangeAnalysis.cpp`: Range analysis for determining variable bounds
+  - `lib/SRAA/vSSA.cpp`: Value-based Static Single Assignment form implementation
+  - `include/SRAA`: Interface definitions for SRAA and supporting analyses
 
 ## Configuration Files
 
 Cactus uses several configuration files in the `config/` directory:
-- `ptr.config`: Configuration for pointer analysis
+- `ptr.config`: Configuration for pointer analysis, specifying memory allocation and access behaviors
 - `taint.config`: Sources, sinks, and propagation rules for taint analysis
-- `modref.config`: Memory reference analysis configuration
+- `modref.config`: Memory reference analysis configuration, specifying function read/write effects
+
+### Configuration File Formats
+
+#### ptr.config
+This file specifies pointer behavior of library functions:
+```
+fopen ALLOC                   # Allocates memory
+getcwd COPY Ret V Arg0 V      # Copies from Arg0 to return value
+getpwuid COPY Ret V STATIC    # Returns a pointer to static memory
+IGNORE chmod                  # Function call can be ignored in pointer analysis
+```
+
+#### taint.config
+This file defines taint sources, sinks, and propagation rules:
+```
+SOURCE fgetc Ret V T          # Return value is a taint source
+SINK printf Arg0 D            # First argument is a taint sink
+PIPE memcpy Arg0 R Arg1 R     # Taint propagates from Arg1 to Arg0
+IGNORE free                   # Function call can be ignored in taint analysis
+```
+
+#### modref.config
+This file specifies memory effects of library functions:
+```
+# Format examples:
+malloc REF_ARG NONE           # malloc references its arguments but has no mod effects
+strcpy MOD_ARG REF_ARG        # strcpy modifies and references its arguments
+free MOD_ARG NONE             # free modifies its arguments
+```
 
 ## Project Structure
 
 - `lib/`: Core analysis libraries
+  - `FPAnalysis/`: Function pointer analysis implementation
+  - `PointerAnalysis/`: Pointer analysis implementation
+  - `SVF/`: Static Value-Flow analysis framework
+  - `SRAA/`: Strict Relation Alias Analysis implementation
+  - `TaintAnalysis/`: Taint analysis implementation
+  - `Dynamic/`: Dynamic analysis support
+  - `Annotation/`: Code annotation utilities
+  - `Transforms/`: LLVM IR transformations
+  - `Util/`: Utility functions and helpers
 - `include/`: Header files for analysis libraries
 - `tools/`: Command-line tools and analysis passes
   - `Sparrow/`: Call graph construction
   - `WPA/`: Whole program analysis
   - `SABER/`: Memory bug detection
   - `taint-check/`: Taint analysis
-  - And many more specialized tools
+  - `global-pts/`: Global points-to analysis
+  - `pts-dump/`: Points-to information dump
+  - `pts-inst/`: Points-to instrumentation
+  - `pts-verify/`: Points-to verification
+  - `vkcfa-taint/`: Value and context flow-aware taint analysis
+  - `table/` and `table-check/`: Analysis table generation and verification
+  - `dot-du-module/`: Dot graph generator for def-use chains
+  - `dot-pointer-cfg/`: Dot graph generator for pointer CFGs
 - `config/`: Configuration files for various analyses
 - `benchmark/`: Benchmark programs for testing
+
+
+## Related
+
+- https://github.com/vmpaisante/sraa, Pointer Disambiguation via Strict Inequalities, CGO'17
+- https://github.com/vmpaisante/obaa
+- [DG](https://github.com/mchalupa/dg) - Dependence Graph for analysis of LLVM bitcode
+- [AserPTA](https://github.com/PeimingLiu/AserPTA) - Andersen's points-to analysis
+- [TPA](https://github.com/grievejia/tpa) - A flow-sensitive, context-sensitive pointer analysis
+- [Andersen](https://github.com/grievejia/andersen) - Andersen's points-to analysis
+- [SUTURE](https://github.com/seclab-ucr/SUTURE) - Static analysis for security
+- [LLVM Opt Benchmark](https://github.com/dtcxzyw/llvm-opt-benchmark) - LLVM optimization benchmarks
+- [EOS](https://github.com/gpoesia/eos) - ?
