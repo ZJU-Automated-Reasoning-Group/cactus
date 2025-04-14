@@ -2,6 +2,7 @@
 
 #include "PointerAnalysis/Engine/EvalResult.h"
 #include "PointerAnalysis/Program/CFG/CFGNode.h"
+#include "Context/SelectiveKCFA.h"
 
 namespace context
 {

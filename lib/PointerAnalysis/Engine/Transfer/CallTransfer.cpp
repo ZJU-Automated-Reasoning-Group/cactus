@@ -5,6 +5,8 @@ TODO
 */
 
 #include "Context/KLimitContext.h"
+#include "Context/SelectiveKCFA.h"
+#include "PointerAnalysis/Engine/ContextSensitivity.h"
 #include "PointerAnalysis/Engine/GlobalState.h"
 #include "PointerAnalysis/Engine/StorePruner.h"
 #include "PointerAnalysis/Engine/TransferFunction.h"
@@ -160,6 +162,10 @@ void TransferFunction::evalInternalCall(const context::Context* ctx, const CallC
 	assert(tgtCFG != nullptr);
 	auto tgtEntryNode = tgtCFG->getEntryNode();
 
+	// Apply context sensitivity based on the configured policy
+	auto callsite = callNode.getCallSite();
+	auto newCtx = ContextSensitivityPolicy::pushContext(ctx, callsite);
+
 	bool isValid, envChanged;
 	std::tie(isValid, envChanged) = evalCallArguments(ctx, callNode, fc);
 	if (!isValid)
@@ -171,13 +177,13 @@ void TransferFunction::evalInternalCall(const context::Context* ctx, const CallC
 
 	// 上下文敏感分析中的每个函数调用上下文只需要维护与其相关的内存状态，而不是整个程序的内存状态，从而减少了内存使用和计算开销
 	// FIXME?: Create a cache mapping call sites to their pruned store？
-	auto prunedStore = StorePruner(globalState.getEnv(), globalState.getPointerManager(), globalState.getMemoryManager()).pruneStore(*localState, ProgramPoint(ctx, &callNode));
+	auto prunedStore = StorePruner(globalState.getEnv(), globalState.getPointerManager(), globalState.getMemoryManager()).pruneStore(*localState, ProgramPoint(newCtx, &callNode));
 	auto& newStore = evalResult.getNewStore(std::move(prunedStore));
 	evalResult.addMemLevelProgramPoint(ProgramPoint(fc.getContext(), tgtEntryNode), newStore);
 
 	// Force enqueuing the direct successors of the call
 	if (!tgtCFG->doesNotReturn())
-		addMemLevelSuccessors(ProgramPoint(ctx, &callNode), *localState, evalResult);
+		addMemLevelSuccessors(ProgramPoint(newCtx, &callNode), *localState, evalResult);
 }
 
 void TransferFunction::evalCallNode(const ProgramPoint& pp, EvalResult& evalResult)
@@ -193,15 +199,16 @@ void TransferFunction::evalCallNode(const ProgramPoint& pp, EvalResult& evalResu
 	{
 		// Update call graph first
 		auto callsite = callNode.getCallSite();
-		auto newCtx = context::KLimitContext::pushContext(ctx, callsite);
+		// Use the configured context sensitivity policy
+		auto newCtx = ContextSensitivityPolicy::pushContext(ctx, callsite);
 		auto callTgt = FunctionContext(newCtx, f);
 		bool callGraphUpdated = globalState.getCallGraph().insertEdge(ProgramPoint(ctx, &callNode), callTgt);
 
 		// Check whether f is an external library call
 		if (f->isDeclaration())
-			evalExternalCall(ctx, callNode, callTgt, evalResult);
+			evalExternalCall(newCtx, callNode, callTgt, evalResult);
 		else
-			evalInternalCall(ctx, callNode, callTgt, evalResult, callGraphUpdated);
+			evalInternalCall(newCtx, callNode, callTgt, evalResult, callGraphUpdated);
 	}
 }
 

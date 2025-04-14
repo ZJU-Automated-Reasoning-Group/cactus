@@ -2,9 +2,13 @@ set (PointerAnalysisSourceCodes
 	Analysis/GlobalPointerAnalysis.cpp
 	Analysis/SemiSparsePointerAnalysis.cpp
 	Analysis/PointerAnalysisQueries.cpp
+	Analysis/SelectiveKCFAExample.cpp
+	Analysis/SelectiveKCFAPointerAnalysis.cpp
 	Context/AdaptiveContext.cpp
 	Context/Context.cpp
 	Context/KLimitContext.cpp
+	Context/SelectiveKCFA.cpp
+	Engine/ContextSensitivity.cpp
 	Engine/ExternalCallAnalysis.cpp
 	Engine/Initializer.cpp
 	Engine/SemiSparsePropagator.cpp

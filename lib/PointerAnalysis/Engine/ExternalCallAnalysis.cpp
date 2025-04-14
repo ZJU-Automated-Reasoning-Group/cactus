@@ -1,17 +1,23 @@
 #include "Annotation/Pointer/ExternalPointerTable.h"
 #include "Annotation/Pointer/PointerEffect.h"
 #include "PointerAnalysis/Engine/GlobalState.h"
+#include "PointerAnalysis/Engine/ContextSensitivity.h"
 #include "PointerAnalysis/Engine/TransferFunction.h"
 #include "PointerAnalysis/MemoryModel/MemoryManager.h"
 #include "PointerAnalysis/MemoryModel/PointerManager.h"
 #include "PointerAnalysis/MemoryModel/Type/TypeLayout.h"
 #include "PointerAnalysis/Program/SemiSparseProgram.h"
+#include "Context/SelectiveKCFA.h"
 
 #include <llvm/IR/CallSite.h>
 #include <llvm/IR/Constants.h>
+#include <llvm/IR/Function.h>
+#include <llvm/IR/GlobalValue.h>
+#include <llvm/IR/Type.h>
 #include <llvm/Support/raw_ostream.h>
 
 using namespace annotation;
+using namespace context;
 using namespace llvm;
 
 namespace tpa
@@ -120,6 +126,9 @@ static bool isSingleAlloc(const TypeLayout* typeLayout, const llvm::Value* sizeV
 bool TransferFunction::evalMallocWithSize(const context::Context* ctx, const llvm::Instruction* dstVal, llvm::Type* mallocType, const llvm::Value* mallocSize)
 {
 	assert(ctx != nullptr && dstVal != nullptr);
+	
+	// Apply context sensitivity based on the configured policy
+	auto allocCtx = ContextSensitivityPolicy::pushContext(ctx, dstVal);
 
 	const TypeLayout* typeLayout = nullptr;
 	if (mallocType == nullptr)
@@ -133,7 +142,7 @@ bool TransferFunction::evalMallocWithSize(const context::Context* ctx, const llv
 			typeLayout = TypeLayout::getByteArrayTypeLayout();
 	}
 
-	return evalMemoryAllocation(ctx, dstVal, typeLayout, true);
+	return evalMemoryAllocation(allocCtx, dstVal, typeLayout, true);
 }
 
 bool TransferFunction::evalExternalAlloc(const context::Context* ctx, const CallCFGNode& callNode, const PointerAllocEffect& allocEffect)
@@ -142,12 +151,16 @@ bool TransferFunction::evalExternalAlloc(const context::Context* ctx, const Call
 	auto dstVal = callNode.getDest();
 	if (dstVal == nullptr)
 		return false;
+	
+	// Apply context sensitivity based on the configured policy
+	auto callsite = callNode.getCallSite();
+	auto newCtx = ContextSensitivityPolicy::pushContext(ctx, callsite);
 
 	auto mallocType = getMallocType(callNode.getCallSite());
 	auto sizeVal = allocEffect.hasSizePosition() ? getArgument(callNode, allocEffect.getSizePosition()) : nullptr;
 
 	// Handle the case where getMallocType returns nullptr
-	return evalMallocWithSize(ctx, dstVal, mallocType, sizeVal);
+	return evalMallocWithSize(newCtx, dstVal, mallocType, sizeVal);
 }
 
 void TransferFunction::evalMemcpyPtsSet(const MemoryObject* dstObj, const std::vector<const MemoryObject*>& srcObjs, size_t startingOffset, Store& store)
@@ -341,6 +354,10 @@ void TransferFunction::evalExternalCallByEffect(const context::Context* ctx, con
 
 void TransferFunction::evalExternalCall(const context::Context* ctx, const CallCFGNode& callNode, const FunctionContext& fc, EvalResult& evalResult)
 {
+	// Apply context sensitivity based on the configured policy
+	auto callsite = callNode.getCallSite();
+	auto newCtx = ContextSensitivityPolicy::pushContext(ctx, callsite);
+	
 	auto summary = globalState.getExternalPointerTable().lookup(fc.getFunction()->getName());
 	if (summary == nullptr)
 	{
@@ -348,19 +365,19 @@ void TransferFunction::evalExternalCall(const context::Context* ctx, const CallC
 		errs() << "Treating as IGNORE. Add annotation to config file for more precise analysis.\n";
 		
 		// Treat unmodeled functions as no-ops by default instead of crashing
-		addMemLevelSuccessors(ProgramPoint(ctx, &callNode), *localState, evalResult);
+		addMemLevelSuccessors(ProgramPoint(newCtx, &callNode), *localState, evalResult);
 		return;
 	}
 
 	// If the external func is a noop, we still need to propagate
 	if (summary->empty())
 	{
-		addMemLevelSuccessors(ProgramPoint(ctx, &callNode), *localState, evalResult);
+		addMemLevelSuccessors(ProgramPoint(newCtx, &callNode), *localState, evalResult);
 	}
 	else
 	{
 		for (auto const& effect: *summary)
-			evalExternalCallByEffect(ctx, callNode, effect, evalResult);
+			evalExternalCallByEffect(newCtx, callNode, effect, evalResult);
 	}
 }
 

@@ -1,6 +1,7 @@
 #include "Context/AdaptiveContext.h"
 #include "Context/Context.h"
 #include "Context/KLimitContext.h"
+#include "Context/SelectiveKCFA.h"
 #include "PointerAnalysis/MemoryModel/MemoryManager.h"
 #include "PointerAnalysis/MemoryModel/Type/ArrayLayout.h"
 #include "PointerAnalysis/MemoryModel/Type/PointerLayout.h"
@@ -16,6 +17,9 @@ namespace context
 std::unordered_set<Context> Context::ctxSet;
 unsigned KLimitContext::defaultLimit = 0u;
 std::unordered_set<ProgramPoint> AdaptiveContext::trackedCallsites;
+unsigned SelectiveKCFA::defaultLimit = 0u;
+std::unordered_map<const llvm::Instruction*, unsigned> SelectiveKCFA::callSiteKLimits;
+std::unordered_map<const llvm::Instruction*, unsigned> SelectiveKCFA::allocSiteKLimits;
 
 }
 

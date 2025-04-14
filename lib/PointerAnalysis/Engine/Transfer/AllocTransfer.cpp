@@ -1,19 +1,23 @@
 #include "PointerAnalysis/Engine/GlobalState.h"
+#include "PointerAnalysis/Engine/ContextSensitivity.h"
 #include "PointerAnalysis/Engine/TransferFunction.h"
 #include "PointerAnalysis/MemoryModel/MemoryManager.h"
 #include "PointerAnalysis/MemoryModel/PointerManager.h"
+#include "Context/SelectiveKCFA.h"
 
 namespace tpa
 {
 
 bool TransferFunction::evalMemoryAllocation(const context::Context* ctx, const llvm::Instruction* inst, const TypeLayout* type, bool isHeap)
 {
-	auto ptr = globalState.getPointerManager().getOrCreatePointer(ctx, inst);
+	// Apply context sensitivity based on the configured policy
+	auto allocCtx = ContextSensitivityPolicy::pushContext(ctx, inst);
+	auto ptr = globalState.getPointerManager().getOrCreatePointer(allocCtx, inst);
 
 	auto mem = 
 		isHeap?
-		globalState.getMemoryManager().allocateHeapMemory(ctx, inst, type) :
-		globalState.getMemoryManager().allocateStackMemory(ctx, inst, type);
+		globalState.getMemoryManager().allocateHeapMemory(allocCtx, inst, type) :
+		globalState.getMemoryManager().allocateStackMemory(allocCtx, inst, type);
 
 	return globalState.getEnv().strongUpdate(ptr, PtsSet::getSingletonSet(mem));
 }

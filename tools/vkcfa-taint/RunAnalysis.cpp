@@ -2,7 +2,11 @@
 #include "RunAnalysis.h"
 
 #include "Context/KLimitContext.h"
+#include "Context/SelectiveKCFA.h"
 #include "PointerAnalysis/Analysis/SemiSparsePointerAnalysis.h"
+#include "PointerAnalysis/Analysis/SelectiveKCFAPointerAnalysis.h"
+#include "PointerAnalysis/Analysis/ContextSensitivePointerAnalysis.h"
+#include "PointerAnalysis/Engine/ContextSensitivity.h"
 #include "PointerAnalysis/FrontEnd/SemiSparseProgramBuilder.h"
 #include "TaintAnalysis/Analysis/TrackingTaintAnalysis.h"
 #include "TaintAnalysis/FrontEnd/DefUseModuleBuilder.h"
@@ -20,7 +24,19 @@ using namespace util::io;
 
 bool runAnalysisOnModule(const Module& module, const CommandLineOptions& opts)
 {
-	KLimitContext::setLimit(0);
+	// Get policy and k-limit from options
+	auto policy = opts.getContextPolicy();
+	auto k = opts.getKLimit();
+	
+	// Apply k-limit to the appropriate context policy
+	if (policy == ContextSensitivityPolicy::Policy::UniformKLimit) {
+		KLimitContext::setLimit(k);
+	} else if (policy == ContextSensitivityPolicy::Policy::SelectiveKCFA) {
+		SelectiveKCFA::setDefaultLimit(k);
+	}
+	
+	// Configure the context sensitivity policy
+	ContextSensitivityPolicy::configurePolicy(policy, &module);
 
 	SemiSparseProgramBuilder ssProgBuilder;
 	auto ssProg = ssProgBuilder.runOnModule(module);
@@ -39,6 +55,16 @@ bool runAnalysisOnModule(const Module& module, const CommandLineOptions& opts)
 
 	for (auto const& pp: ret.second)
 		errs() << "Find loss site " << pp << "\n";
+		
+	// Print the context sensitivity policy stats
+	if (ContextSensitivityPolicy::activePolicy == ContextSensitivityPolicy::Policy::SelectiveKCFA) {
+		errs() << "\nContext sensitivity policy: SelectiveKCFA (default k=" << k << ")\n";
+		SelectiveKCFA::printStats();
+	} else if (ContextSensitivityPolicy::activePolicy == ContextSensitivityPolicy::Policy::UniformKLimit) {
+		errs() << "\nContext sensitivity policy: Uniform k-limit (k=" << k << ")\n";
+	} else {
+		errs() << "\nContext sensitivity policy: No context sensitivity (k=0)\n";
+	}
 
 	return ret.first;
 }

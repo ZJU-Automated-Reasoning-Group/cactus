@@ -1,6 +1,7 @@
 #pragma once
 
 #include <llvm/ADT/StringRef.h>
+#include "PointerAnalysis/Engine/ContextSensitivity.h"
 
 class CommandLineOptions
 {
@@ -10,6 +11,8 @@ private:
 
 	bool noPrepassFlag;
 	bool dumpTypeFlag;
+	tpa::ContextSensitivityPolicy::Policy contextPolicy;
+	unsigned kLimit;  // k-limit for context sensitivity
 public:
 	CommandLineOptions(int argc, char** argv);
 
@@ -18,5 +21,7 @@ public:
 
 	bool isPrepassDisabled() const { return noPrepassFlag; }
 	bool shouldPrintType() const { return dumpTypeFlag; }
+	tpa::ContextSensitivityPolicy::Policy getContextPolicy() const { return contextPolicy; }
+	unsigned getKLimit() const { return kLimit; }
 };
 
