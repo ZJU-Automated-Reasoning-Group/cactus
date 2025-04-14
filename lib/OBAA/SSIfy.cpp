@@ -841,7 +841,7 @@ SmallPtrSet<BasicBlock*, 4> SSIfy::get_iterated_df(BasicBlock* BB) const
             // Only push to stack if this BasicBlock wasn't seen before
             // P.S.: insert returns a pair. The second refers to whether
             // the element was actually inserted or not.
-            if ((iterated_df.insert(BB_infrontier))) {
+            if ((iterated_df.insert(BB_infrontier)).second) {
                 stack.push_back(BB_infrontier);
             }
         }
@@ -877,7 +877,7 @@ SmallPtrSet<BasicBlock*, 4> SSIfy::get_iterated_pdf(BasicBlock* BB) const
             // Only push to stack if this BasicBlock wasn't seen before
             // P.S.: insert returns a pair. The second refers to whether
             // the element was actually inserted or not.
-            if ((iterated_pdf.insert(BB_infrontier))) {
+            if ((iterated_pdf.insert(BB_infrontier)).second) {
                 stack.push_back(BB_infrontier);
             }
         }

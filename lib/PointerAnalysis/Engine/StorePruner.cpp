@@ -94,6 +94,7 @@ Store StorePruner::filterStore(const Store& store, const ObjectSet& reachableSet
 
 Store StorePruner::pruneStore(const Store& store, const ProgramPoint& pp)
 {
+	// 上下文敏感分析中的每个函数调用上下文只需要维护与其相关的内存状态，而不是整个程序的内存状态，从而减少了内存使用和计算开销
 	assert(pp.getCFGNode()->isCallNode() && "Prunning can only happen on call node!");
 	
 	auto reachableSet = getRootSet(store, pp);

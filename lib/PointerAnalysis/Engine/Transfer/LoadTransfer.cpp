@@ -1,3 +1,16 @@
+/*
+Consider y = *x:
+  pts(y) = ⋃ pts(o) for all o ∈ pts(x)
+  If pts(x) = ∅, then pts(y) = {universal}
+
+More concretely:
+1. pts(x) = {o1, o2, ..., on}               // Points-to set of x
+2. For each oi ∈ pts(x):
+   pts(oi) = {p1, p2, ..., pm}              // Points-to set stored at object oi
+3. pts(y) = ⋃ pts(oi) for all oi ∈ pts(x)   // Points-to set of y is the union of all points-to sets at objects pointed by x
+4. If pts(x) = ∅, then pts(y) = {universal} // Conservative handling for unknown pointers
+*/
+
 #include "PointerAnalysis/Engine/GlobalState.h"
 #include "PointerAnalysis/Engine/TransferFunction.h"
 #include "PointerAnalysis/MemoryModel/MemoryManager.h"
@@ -15,10 +28,11 @@ PtsSet TransferFunction::loadFromPointer(const Pointer* ptr, const Store& store)
 	if (!srcSet.empty())
 	{
 		std::vector<PtsSet> srcSets;
-		srcSets.reserve(srcSet.size());
+		srcSets.reserve(srcSet.size());  //
 		
 		for (auto obj: srcSet)
 		{
+			// lookup the store for the object
 			auto objSet = store.lookup(obj);
 			if (!objSet.empty())
 			{

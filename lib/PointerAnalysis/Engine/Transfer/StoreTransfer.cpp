@@ -38,7 +38,7 @@ void TransferFunction::evalStore(const Pointer* dst, const Pointer* src, const P
 
 	auto dstObj = *dstSet.begin();
 	// If the store target is precise and the target location is not unknown
-	// TOOD: if the dstSet may grow, under what conditiosn can we perform the strong update here?
+	// TOOD: if the dstSet may grow, under what conditions can we perform the strong update here (is it because we are perfomring a flow-sensitive analysis)?
 	if (dstSet.size() == 1 && !dstObj->isSummaryObject())
 		strongUpdateStore(dstObj, srcSet, store);
 	else
