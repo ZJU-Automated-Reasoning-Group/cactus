@@ -7,11 +7,18 @@
 #include <llvm/IR/Module.h>
 #include <memory>
 
+// Forward declarations for external namespaces
+namespace Canary {
+    class DyckAliasAnalysis;
+}
+
 namespace tpa
 {
 
-// Forward declaration 
+// Forward declarations
 class PointerAnalysisQueries;
+class PointerManager;
+class MemoryManager;
 
 /**
  * IntrospectiveContextSensitivity - A utility class that runs a context-insensitive
@@ -27,11 +34,19 @@ private:
     // Module being analyzed
     const llvm::Module* module;
     
+    // Pointer and memory managers for the pre-analysis
+    PointerManager* ptrManager;
+    MemoryManager* memManager;
+    
+    // Canary's analysis
+    Canary::DyckAliasAnalysis* canaryAA;
+    
     // Setup a context-insensitive analysis
     void setupPreAnalysis(const llvm::Module* m);
     
 public:
-    IntrospectiveContextSensitivity() = default;
+    IntrospectiveContextSensitivity();
+    ~IntrospectiveContextSensitivity();
     
     // Initialize and run the introspective selective k-CFA approach
     void initialize(const llvm::Module* m, bool useHeuristicA = true);

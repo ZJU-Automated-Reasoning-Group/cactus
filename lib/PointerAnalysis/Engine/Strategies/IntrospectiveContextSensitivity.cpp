@@ -9,6 +9,8 @@
 #include "Context/IntrospectiveSelectiveKCFA.h"
 #include "PointerAnalysis/Engine/ContextSensitivity.h"
 #include "PointerAnalysis/Analysis/PointerAnalysisQueries.h"
+#include "PointerAnalysis/MemoryModel/MemoryManager.h"
+#include "PointerAnalysis/MemoryModel/PointerManager.h"
 
 #include "FPAnalysis/Canary/DyckAA/DyckAliasAnalysis.h"
 #include "FPAnalysis/Canary/DyckAA/AAAnalyzer.h"
@@ -23,10 +25,6 @@ using namespace context;
 
 namespace tpa
 {
-
-// Forward declarations for wrapper class
-class PointerManager;
-class MemoryManager;
 
 // A specialized PointerAnalysisQueries adapter that uses Canary's DyckAA
 class CanaryPointerAnalysisAdapter : public PointerAnalysisQueries
@@ -78,21 +76,45 @@ public:
     }
 };
 
+// Constructor
+IntrospectiveContextSensitivity::IntrospectiveContextSensitivity()
+    : module(nullptr), ptrManager(nullptr), memManager(nullptr), canaryAA(nullptr)
+{
+}
+
+// Destructor
+IntrospectiveContextSensitivity::~IntrospectiveContextSensitivity()
+{
+    // Clean up resources
+    delete ptrManager;
+    delete memManager;
+    delete canaryAA;
+}
+
 // Implementation of IntrospectiveContextSensitivity methods from the header
 void IntrospectiveContextSensitivity::setupPreAnalysis(const llvm::Module* m)
 {
     module = m;
     
     // Create and run Canary's context-insensitive DyckAliasAnalysis
-    Canary::DyckAliasAnalysis* canaryAA = new Canary::DyckAliasAnalysis();
+    canaryAA = new Canary::DyckAliasAnalysis();
     canaryAA->performDyckAliasAnalysis(*const_cast<Module*>(m));
     
-    // Create a queries interface using Canary's analysis
-    // This is a simplified implementation that would need to be expanded with real instances
-    // of pointer and memory managers in a production environment
+    // Create pointer and memory managers
+    ptrManager = new PointerManager();
+    memManager = new MemoryManager();
     
-    // In the real implementation, create adapter with actual managers
-    // preAnalysisQueries = std::make_unique<CanaryPointerAnalysisAdapter>(canaryAA, ptrManager, memManager);
+    // Create a queries interface using Canary's analysis
+    preAnalysisQueries = std::make_unique<CanaryPointerAnalysisAdapter>(
+        canaryAA, *ptrManager, *memManager);
+
+    // Check if the pre-analysis was successful
+    llvm::outs() << "Introspective pre-analysis using Canary completed.\n";
+    if (preAnalysisQueries) {
+        llvm::outs() << "PointerAnalysisQueries interface created successfully.\n";
+    } else {
+        llvm::errs() << "Warning: Failed to create PointerAnalysisQueries interface.\n";
+    }
 }
 
 void IntrospectiveContextSensitivity::initialize(const llvm::Module* m, bool useHeuristicA)
@@ -107,25 +129,29 @@ void IntrospectiveContextSensitivity::initialize(const llvm::Module* m, bool use
     if (useHeuristicA) {
         // Default thresholds for Heuristic A
         IntrospectiveSelectiveKCFA::setHeuristicAThresholds(50, 100, 75);
+        llvm::outs() << "Using Heuristic A with thresholds: K=50, L=100, M=75\n";
     } else {
         // Default thresholds for Heuristic B
         IntrospectiveSelectiveKCFA::setHeuristicBThresholds(200, 5000);
+        llvm::outs() << "Using Heuristic B with thresholds: P=200, Q=5000\n";
     }
     
     // Compute metrics from the pre-analysis
     if (preAnalysisQueries) {
+        llvm::outs() << "Computing metrics from pre-analysis results...\n";
         IntrospectiveSelectiveKCFA::computeMetricsFromPreAnalysis(*preAnalysisQueries, *module);
         
         // Apply the heuristics to decide what to refine
+        llvm::outs() << "Applying heuristics to decide which call sites and allocation sites to refine...\n";
         IntrospectiveSelectiveKCFA::applyHeuristics();
         
         // Print metrics statistics
         IntrospectiveSelectiveKCFA::printMetricsStats(llvm::errs());
+        
+        llvm::outs() << "Introspective analysis completed successfully.\n";
+    } else {
+        llvm::errs() << "Error: Pre-analysis did not complete successfully. Cannot compute metrics.\n";
     }
-    
-    // Set up ContextSensitivityPolicy to use the configured SelectiveKCFA
-    // This depends on the specific implementation in the codebase
-    // tpa::ContextSensitivityPolicy::setPolicy(tpa::ContextSensitivityPolicy::Policy::SelectiveKCFA);
 }
 
 void IntrospectiveContextSensitivity::configureHeuristicA(unsigned K, unsigned L, unsigned M)
