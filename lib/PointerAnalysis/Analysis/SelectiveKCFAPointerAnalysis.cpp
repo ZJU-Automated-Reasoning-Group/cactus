@@ -1,7 +1,6 @@
 #include "PointerAnalysis/Analysis/SelectiveKCFAPointerAnalysis.h"
-#include "PointerAnalysis/Analysis/SelectiveKCFAExample.h"
-#include "PointerAnalysis/Engine/IntrospectiveContextSensitivity.h"
-#include "Context/IntrospectiveSelectiveKCFA.h"
+#include "PointerAnalysis/Engine/Strategies/SimpleSelectiveKCFAStrategies.h"
+#include "PointerAnalysis/Engine/Strategies/IntrospectiveContextSensitivity.h"
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Function.h>
@@ -74,12 +73,14 @@ void SelectiveKCFAPointerAnalysis::setupSelectiveKCFA(const llvm::Module* module
     switch(strategy) {
         case SelectiveKCFAStrategy::Complex:
             // Complex configuration with heuristics
-            SelectiveKCFAExample::configureKLimitsByHeuristic(module);
+            SelectiveKCFAStrategies::configureKLimitsByHeuristic(module);
+            llvm::outs() << "Using SelectiveKCFA with complex heuristics based on function size and allocation sites\n";
             break;
             
         case SelectiveKCFAStrategy::CallFrequency:
             // Configuration based on call frequency
-            SelectiveKCFAExample::configureKLimitsByCallFrequency(module);
+            SelectiveKCFAStrategies::configureKLimitsByCallFrequency(module);
+            llvm::outs() << "Using SelectiveKCFA with call frequency heuristics\n";
             break;
             
         case SelectiveKCFAStrategy::IntrospectiveA:
@@ -129,33 +130,10 @@ void SelectiveKCFAPointerAnalysis::setupSelectiveKCFA(const llvm::Module* module
         case SelectiveKCFAStrategy::Basic:
         default:
             // Basic configuration with simple heuristics
-            SelectiveKCFAExample::configureSelectiveKCFA(module);
+            SelectiveKCFAStrategies::configureBasicStrategy(module);
+            llvm::outs() << "Using SelectiveKCFA with basic heuristics\n";
             break;
     }
-    
-    // You could also add custom configuration here
-    // For example, set k=3 for main and any function called directly from main
-    /*
-    for (const llvm::Function& F : *module) {
-        if (F.getName() == "main") {
-            context::SelectiveKCFA::setKLimitForFunctionCallSites(&F, 3);
-            
-            // Identify functions called from main and set higher k
-            for (const auto& BB : F) {
-                for (const auto& I : BB) {
-                    if (const llvm::CallInst* callInst = llvm::dyn_cast<llvm::CallInst>(&I)) {
-                        if (const llvm::Function* callee = callInst->getCalledFunction()) {
-                            if (!callee->isDeclaration()) {
-                                // Higher sensitivity for functions called from main
-                                context::SelectiveKCFA::setKLimitForFunctionCallSites(callee, 2);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    */
 }
 
 } // namespace tpa 

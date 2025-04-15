@@ -2,20 +2,20 @@ set (PointerAnalysisSourceCodes
 	Analysis/GlobalPointerAnalysis.cpp
 	Analysis/SemiSparsePointerAnalysis.cpp
 	Analysis/PointerAnalysisQueries.cpp
-	Analysis/SelectiveKCFAExample.cpp
 	Analysis/SelectiveKCFAPointerAnalysis.cpp
 	Context/AdaptiveContext.cpp
 	Context/Context.cpp
 	Context/KLimitContext.cpp
 	Context/SelectiveKCFA.cpp
 	Context/IntrospectiveSelectiveKCFA.cpp
-	Engine/IntrospectiveContextSensitivity.cpp
 	Engine/ContextSensitivity.cpp
 	Engine/ExternalCallAnalysis.cpp
 	Engine/Initializer.cpp
 	Engine/SemiSparsePropagator.cpp
 	Engine/StorePruner.cpp
 	Engine/TransferFunction.cpp
+	Engine/Strategies/IntrospectiveContextSensitivity.cpp
+	Engine/Strategies/SimpleSelectiveKCFAStrategies.cpp
 	Engine/Transfer/AllocTransfer.cpp
 	Engine/Transfer/CallTransfer.cpp
 	Engine/Transfer/CopyTransfer.cpp

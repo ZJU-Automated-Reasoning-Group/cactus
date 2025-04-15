@@ -5,7 +5,7 @@
  * and then configure a context-sensitive analysis using the IntrospectiveSelectiveKCFA approach.
  */
 
-#include "PointerAnalysis/Engine/IntrospectiveContextSensitivity.h"
+#include "PointerAnalysis/Engine/Strategies/IntrospectiveContextSensitivity.h"
 #include "Context/IntrospectiveSelectiveKCFA.h"
 #include "PointerAnalysis/Engine/ContextSensitivity.h"
 #include "PointerAnalysis/Analysis/PointerAnalysisQueries.h"

@@ -1,14 +1,11 @@
-/*
-* Maybe later we can use the resutls of a pre-analysis (e.g., Canray/DyckAA) to configure the k-limits
-*/
-
-#include "PointerAnalysis/Analysis/SelectiveKCFAExample.h"
+#include "PointerAnalysis/Engine/Strategies/SimpleSelectiveKCFAStrategies.h"
 
 #include <llvm/IR/Module.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/Instructions.h>
 #include <llvm/IR/InstVisitor.h>
 #include <llvm/IR/InstIterator.h>
+#include <llvm/Support/raw_ostream.h>
 
 using namespace llvm;
 
@@ -45,12 +42,12 @@ public:
     unsigned getTotalInsts() const { return totalInsts; }
 };
 
-void SelectiveKCFAExample::configureSelectiveKCFA(const Module* module)
+void SelectiveKCFAStrategies::configureBasicStrategy(const Module* module)
 {
     // Set default k limit to 1
     context::SelectiveKCFA::setDefaultLimit(1);
     
-    // For this example, we'll set a higher k limit (3) for functions that are small
+    // For this strategy, we'll set a higher k limit (3) for functions that are small
     // and a lower k limit (0) for functions that are large or have many call sites
     for (const Function& F : *module) {
         if (F.isDeclaration())
@@ -77,7 +74,7 @@ void SelectiveKCFAExample::configureSelectiveKCFA(const Module* module)
     context::SelectiveKCFA::setKLimitForCallSitesByName(module, "process.*", 4);
 }
 
-void SelectiveKCFAExample::configureKLimitsByHeuristic(const Module* module)
+void SelectiveKCFAStrategies::configureKLimitsByHeuristic(const Module* module)
 {
     // Set a default k limit of 1
     context::SelectiveKCFA::setDefaultLimit(1);
@@ -111,7 +108,7 @@ void SelectiveKCFAExample::configureKLimitsByHeuristic(const Module* module)
     }
 }
 
-void SelectiveKCFAExample::configureKLimitsByCallFrequency(const Module* module)
+void SelectiveKCFAStrategies::configureKLimitsByCallFrequency(const Module* module)
 {
     // Set a default k limit of 1
     context::SelectiveKCFA::setDefaultLimit(1);
@@ -154,6 +151,12 @@ void SelectiveKCFAExample::configureKLimitsByCallFrequency(const Module* module)
             context::SelectiveKCFA::setKLimitForFunctionCallSites(func, 3);
         }
     }
+}
+
+void SelectiveKCFAStrategies::printStats(raw_ostream& os)
+{
+    os << "SelectiveKCFA Strategy Configuration Statistics:\n";
+    context::SelectiveKCFA::printStats(os);
 }
 
 } // namespace tpa 
