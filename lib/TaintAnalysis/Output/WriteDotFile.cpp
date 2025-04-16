@@ -19,6 +19,14 @@ namespace util
 namespace io
 {
 
+/**
+ * Writes a DOT graph representation of a DefUseFunction to an output stream.
+ * This function generates a visualization of the def-use graph, showing both
+ * top-level (dotted) and memory-level edges between instructions.
+ *
+ * @param os Output stream to write the DOT graph to
+ * @param duFunc The DefUseFunction to visualize
+ */
 void writeDefUseFunc(raw_ostream& os, const DefUseFunction& duFunc)
 {
 	os << "digraph \"" << "DefUseGraph for function " << duFunc.getFunction().getName() << "\" {\n";
@@ -60,6 +68,14 @@ void writeDefUseFunc(raw_ostream& os, const DefUseFunction& duFunc)
 	os << "}\n";
 }
 
+/**
+ * Writes a DOT graph representation of a DefUseFunction to a file.
+ * This is a convenience wrapper around writeDefUseFunc that handles
+ * opening and closing the output file.
+ *
+ * @param filePath Path to the output file
+ * @param duFunc The DefUseFunction to visualize
+ */
 void writeDotFile(const char* filePath, const DefUseFunction& duFunc)
 {
 	std::error_code ec;

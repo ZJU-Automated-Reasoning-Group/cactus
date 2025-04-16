@@ -13,10 +13,28 @@ using namespace context;
 namespace taint
 {
 
+/**
+ * Constructor for Initializer class.
+ * Sets up references to key components needed for initializing the taint analysis.
+ *
+ * @param g The global state for taint analysis
+ * @param m The taint memo table for recording taint values
+ */
 Initializer::Initializer(TaintGlobalState& g, TaintMemo& m): duModule(g.getDefUseModule()), env(g.getEnv()), ptrAnalysis(g.getPointerAnalysis()), memo(m)
 {
 }
 
+/**
+ * Initializes taint values for command-line arguments in the main function.
+ * Sets up initial taint status for argc, argv, and envp as appropriate:
+ * - argc is considered tainted (user-controlled)
+ * - argv pointer itself is untainted
+ * - argv contents (strings) are tainted
+ * - envp pointer is untainted
+ * - envp contents are tainted
+ *
+ * @param store The taint store to update with initial taint values
+ */
 void Initializer::initializeMainArgs(TaintStore& store)
 {
 	auto const& entryFunc = duModule.getEntryFunction().getFunction();
@@ -50,6 +68,13 @@ void Initializer::initializeMainArgs(TaintStore& store)
 	}
 }
 
+/**
+ * Initializes taint values for global variables in the program.
+ * By default, all global variables are considered untainted, except for
+ * the universal object which is marked as "Either" (may be tainted or untainted).
+ *
+ * @param store The taint store to update with initial taint values
+ */
 void Initializer::initializeGlobalVariables(TaintStore& store)
 {
 	auto globalCtx = Context::getGlobalContext();
@@ -67,6 +92,14 @@ void Initializer::initializeGlobalVariables(TaintStore& store)
 	store.strongUpdate(tpa::MemoryManager::getUniversalObject(), TaintLattice::Either);
 }
 
+/**
+ * Main entry point for initializing the taint analysis state.
+ * Sets up initial taint values for program inputs and global variables,
+ * then enqueues the entry instruction for analysis.
+ *
+ * @param initStore Initial taint store (typically empty)
+ * @return WorkList containing the entry point for beginning taint analysis
+ */
 WorkList Initializer::runOnInitState(TaintStore&& initStore)
 {
 	WorkList workList;

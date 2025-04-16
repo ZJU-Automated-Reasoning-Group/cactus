@@ -19,6 +19,13 @@ namespace taint
 namespace
 {
 
+/**
+ * Builds top-level edges in the def-use graph for a function.
+ * These edges represent direct value flow between instructions where
+ * one instruction's result is used as an operand in another.
+ *
+ * @param duFunc The def-use function graph to build edges for
+ */
 void buildTopLevelEdges(DefUseFunction& duFunc)
 {
 	auto const& func = duFunc.getFunction();
@@ -41,6 +48,13 @@ void buildTopLevelEdges(DefUseFunction& duFunc)
 	}
 }
 
+/**
+ * Adds edges from function entry to instructions that use external values.
+ * This includes allocas, returns of constants, and instructions that use
+ * constants or function arguments as operands.
+ *
+ * @param duFunc The def-use function graph to add edges to
+ */
 void addExternalDefs(DefUseFunction& duFunc)
 {
 	auto entryInst = duFunc.getEntryInst();
@@ -74,6 +88,14 @@ void addExternalDefs(DefUseFunction& duFunc)
 	}	
 }
 
+/**
+ * Adds edges to the function exit instruction from instructions that define
+ * memory locations that are live at function exit and are written by the function.
+ *
+ * @param duFunc The def-use function graph to add edges to
+ * @param rdMap Reaching definition map for the function
+ * @param summary ModRef summary of the function
+ */
 void addExternalUses(DefUseFunction& duFunc, const ReachingDefMap<Instruction>& rdMap, const ModRefFunctionSummary& summary)
 {
 	auto exitInst = duFunc.getExitInst();
@@ -97,6 +119,12 @@ void addExternalUses(DefUseFunction& duFunc, const ReachingDefMap<Instruction>& 
 	}
 }
 
+/**
+ * Computes priority values for instructions in reverse post-order.
+ * These priorities are used to order the worklist during taint analysis.
+ *
+ * @param duFunc The def-use function graph to compute priorities for
+ */
 void computeNodePriority(DefUseFunction& duFunc)
 {
 	auto& f = duFunc.getFunction();
@@ -114,6 +142,12 @@ void computeNodePriority(DefUseFunction& duFunc)
 	}
 }
 
+/**
+ * Visitor class that identifies memory reads and adds appropriate memory-level edges.
+ * This visitor analyzes load instructions and function calls to determine what memory
+ * locations they read, then adds edges from the definitions of those locations to the
+ * instructions that read them.
+ */
 class MemReadVisitor: public llvm::InstVisitor<MemReadVisitor>
 {
 private:
@@ -126,6 +160,14 @@ private:
 
 	DefUseFunction& duFunc;
 
+	/**
+	 * Adds memory-level def-use edges for a specific memory object.
+	 * Connects all reaching definitions of the object to the destination instruction.
+	 *
+	 * @param obj Memory object being read
+	 * @param rdStore Store of reaching definitions
+	 * @param dstDuInst Destination instruction reading the memory
+	 */
 	void addMemDefUseEdge(const MemoryObject* obj, const ReachingDefStore<Instruction>& rdStore, DefUseInstruction* dstDuInst)
 	{
 		auto nodeSet = rdStore.getReachingDefs(obj);
@@ -141,6 +183,14 @@ private:
 		}
 	}
 
+	/**
+	 * Processes a memory read operation by adding appropriate memory-level edges.
+	 * Uses pointer analysis to determine what memory objects might be read.
+	 *
+	 * @param inst Instruction performing the read
+	 * @param ptr Pointer operand being dereferenced
+	 * @param isReachableMemory Whether to consider all reachable memory
+	 */
 	void processMemRead(Instruction& inst, Value* ptr, bool isReachableMemory)
 	{
 		auto pSet = ptrAnalysis.getPtsSet(ptr);
@@ -163,6 +213,13 @@ private:
 		}
 	}
 
+	/**
+	 * Processes a call to an external function, adding appropriate memory-level edges.
+	 * Uses the ModRef annotations to determine what memory objects the function reads.
+	 *
+	 * @param cs Call site
+	 * @param f Function being called
+	 */
 	void processExternalCall(CallSite cs, const Function* f)
 	{
 		auto summary = modRefTable.lookup(f->getName());

@@ -22,26 +22,6 @@ Replace `[LLVM3.6.2 Build Path]` with the path to your LLVM 3.6.2 build director
 - Python 3
 - CMake 3.4.3 or newer
 
-## Usage
-
-After building, the executables will be located in the `build/bin` folder. 
-
-### Common Command-Line Options
-
-Most Cactus tools support the following common options:
-
-```bash
--ptr-config <file>      # Specify a custom ptr.config file
--taint-config <file>    # Specify a custom taint.config file 
--modref-config <file>   # Specify a custom modref.config file
--dot-callgraph          # Generate a DOT file of the call graph
--dump-ir                # Dump the transformed IR
--verbose                # Enable verbose output
--stats                  # Print analysis statistics
-```
-
-Each tool may have additional specific options. Use `--help` with any tool to see available options.
-
 ## Available Tools
 
 Cactus provides several specialized analysis tools:
@@ -58,14 +38,14 @@ Options:
 - `-dump-report`: Outputs indirect call targets to `indirect-call-targets.txt`
 
 ### WPA (Whole Program Analysis)
-Implements pointer analysis algorithms from the SVF framework.
+Implements several pointer analysis algorithms from the SVF framework.
 
 ```bash
 ./wpa your_project.bc [options]
 ```
 
 ### SABER
-Static bug checker for memory issues like leaks, use-after-free, and double-free problems.
+Static bug checker for memory issues like leaks, use-after-free, and double-free problems (from SVF).
 
 ```bash
 ./saber your_project.bc [options]
@@ -85,16 +65,46 @@ Performs taint analysis to identify potential security vulnerabilities.
 - `pts-verify`: Points-to verification
 - `vkcfa-taint`: Value and context flow-aware taint analysis
 - `table` and `table-check`: Analysis table generation and verification
+- `dot-du-module`: Dot graph generator for def-use chains
+- `dot-pointer-cfg`: Dot graph generator for pointer CFGs
 
-## Core Functionalities
+## Common Command-Line Options
+
+Most Cactus tools support the following common options:
+
+```bash
+-ptr-config <file>      # Specify a custom ptr.config file
+-taint-config <file>    # Specify a custom taint.config file 
+-modref-config <file>   # Specify a custom modref.config file
+-dot-callgraph          # Generate a DOT file of the call graph
+-dump-ir                # Dump the transformed IR
+-verbose                # Enable verbose output
+-stats                  # Print analysis statistics
+```
+
+Each tool may have additional specific options. Use `-help` with any tool to see available options.
+
+## Core Components
 
 Cactus provides several core analysis capabilities:
 
-### 1. Call Graph Construction (Sparrow)
+### 1. Alias Analysis Collection
+- **Description**: A comprehensive collection of alias analysis implementations.
+- **Components**:
+  - `lib/Alias/`: Contains various alias analysis implementations:
+    - **DyckAA**: Context-sensitive alias analysis
+    - **SRAA (Strict Relation Alias Analysis)**: Identifies non-aliasing pointers by analyzing their strict mathematical relationships
+      - Includes range analysis for determining variable bounds
+      - Value-based Static Single Assignment form implementation
+    - **OBAA (Offset-Based Alias Analysis)**: Leverages offset information to determine alias relationships
+    - **Canary**: A lightweight detection-oriented alias analysis
+
+
+### 2. Call Graph Construction (Sparrow)
 - **Description**: Constructs a precise call graph by resolving indirect calls through function pointer analysis.
 - **Components**:
   - `lib/FPAnalysis`: Core function pointer and call graph construction
-  - `include/FPAnalysis`: Analysis interface definitions, which contains the DyckAA alias analysis and a lightweight FP analysis.
+  - `include/FPAnalysis`: Analysis interface definitions
 
 The `indirect-call-targets.txt` report includes:
 - File path of the call site
@@ -103,15 +113,13 @@ The `indirect-call-targets.txt` report includes:
 - Number of target callees
 - Function names of the target callees
 
-
-### 2. Advanced Pointer Analysis
-
-- **Description**: Implements flow- and context-sensitive Andersen-style pointer analysis
+### 3. Advanced Pointer Analysis
+- **Description**: Implements flow- and (k-limiting) context-sensitive Andersen-style pointer analysis
 - **Components**:
   - `lib/PointerAnalysis`: Pointer analysis engine with multiple precision levels (flow, context)
   - `include/PointerAnalysis`: Analysis interface definitions
 
-### 3. SVF-based Pointer Analyses
+### 4. SVF-based Pointer Analyses
 - **Description**: Incorporates SVF (Static Value-Flow Analysis) framework for precise pointer analysis
 - **Components**:
   - `lib/SVF/WPA`: Various pointer analysis implementations including:
@@ -125,8 +133,8 @@ The `indirect-call-targets.txt` report includes:
     - Double-free
   - `include/SVF`: Interface definitions for SVF analyses
 
-### 4. Taint Analysis Framework
-- **Description**: Tracks the flow of potentially malicious or sensitive data throughout the program.
+### 5. Taint Analysis Framework
+- **Description**: Tracks the flow of potentially malicious or sensitive data throughout the program, which relies on the pointer analysis in `lib/PointerAnalysis`.
 - **Components**:
   - `lib/TaintAnalysis`: Taint propagation engine
   - `include/TaintAnalysis`: Taint analysis interface
@@ -134,7 +142,7 @@ The `indirect-call-targets.txt` report includes:
 
 Use with `-taint-config [file]` to specify a custom configuration file.
 
-### 5. Dynamic Analysis Support
+### 6. Dynamic Analysis Support
 - **Description**: Enables runtime verification and hybrid static-dynamic analyses
 - **Components**:
   - `lib/Dynamic/Analysis`: Runtime pointer analysis and memory tracking
@@ -142,22 +150,6 @@ Use with `-taint-config [file]` to specify a custom configuration file.
   - `lib/Dynamic/Runtime`: Runtime libraries for dynamic analysis
   - `lib/Dynamic/Log`: Log processing for dynamic execution traces
   - `include/Dynamic`: Interface definitions for dynamic analyses
-
-### 6. SRAA
-- **Description**: Strict Relation Alias Analysis (SRAA) - A powerful alias analysis technique that identifies non-aliasing pointers by analyzing their strict mathematical relationships
-- **Components**:
-  - `lib/SRAA/StrictRelationAliasAnalysis.cpp`: Core implementation of the SRAA algorithm
-  - `lib/SRAA/RangeAnalysis.cpp`: Range analysis for determining variable bounds
-  - `lib/SRAA/vSSA.cpp`: Value-based Static Single Assignment form implementation
-  - `include/SRAA`: Interface definitions for SRAA and supporting analyses
-
-### 7. Alias Analysis Collection
-- **Description**: Lightweight but effective alias analysis implementations
-- **Components**:
-  - `lib/Alias/`: Contains merged implementations of three lightweight alias analyses:
-    - Andersen's points-to analysis: Flow-insensitive points-to analysis
-    - DyckAA: Context-sensitive alias analysis
-    - Type-based alias analysis: Uses type information to determine potential aliases
 
 ## Configuration Files
 
@@ -198,11 +190,10 @@ free MOD_ARG NONE             # free modifies its arguments
 ## Project Structure
 
 - `lib/`: Core analysis libraries
+  - `Alias/`: Collection of alias analysis implementations (Andersen's, DyckAA, Type-based, SRAA, OBAA, Canary)
   - `FPAnalysis/`: Function pointer analysis implementation
   - `PointerAnalysis/`: Pointer analysis implementation
   - `SVF/`: Static Value-Flow analysis framework
-  - `SRAA/`: Strict Relation Alias Analysis implementation
-  - `Alias/`: Lightweight alias analysis implementations
   - `TaintAnalysis/`: Taint analysis implementation
   - `Dynamic/`: Dynamic analysis support
   - `Annotation/`: Code annotation utilities
@@ -224,7 +215,6 @@ free MOD_ARG NONE             # free modifies its arguments
   - `dot-pointer-cfg/`: Dot graph generator for pointer CFGs
 - `config/`: Configuration files for various analyses
 - `benchmark/`: Benchmark programs for testing
-
 
 ## Related
 

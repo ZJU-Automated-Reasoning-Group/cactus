@@ -18,6 +18,12 @@ using namespace util::io;
 namespace taint
 {
 
+/**
+ * Adds successor program points at the top level (instruction level) to the evaluation result.
+ * 
+ * @param pp Current program point
+ * @param evalResult Result container to which successors will be added
+ */
 void TransferFunction::addTopLevelSuccessors(const ProgramPoint& pp, EvalResult& evalResult)
 {
 	auto ctx = pp.getContext();
@@ -26,6 +32,13 @@ void TransferFunction::addTopLevelSuccessors(const ProgramPoint& pp, EvalResult&
 		evalResult.addTopLevelSuccessor(ProgramPoint(ctx, succ));
 }
 
+/**
+ * Adds memory-level successors for a specific memory object to the evaluation result.
+ * 
+ * @param pp Current program point
+ * @param obj Memory object for which to add successors
+ * @param evalResult Result container to which successors will be added
+ */
 void TransferFunction::addMemLevelSuccessors(const ProgramPoint& pp, const tpa::MemoryObject* obj, EvalResult& evalResult)
 {
 	auto ctx = pp.getContext();
@@ -34,6 +47,12 @@ void TransferFunction::addMemLevelSuccessors(const ProgramPoint& pp, const tpa::
 		evalResult.addMemLevelSuccessor(ProgramPoint(ctx, succ), obj);
 }
 
+/**
+ * Adds all memory-level successors for the current program point to the evaluation result.
+ * 
+ * @param pp Current program point
+ * @param evalResult Result container to which successors will be added
+ */
 void TransferFunction::addMemLevelSuccessors(const ProgramPoint& pp, EvalResult& evalResult)
 {
 	auto ctx = pp.getContext();
@@ -43,6 +62,14 @@ void TransferFunction::addMemLevelSuccessors(const ProgramPoint& pp, EvalResult&
 			evalResult.addMemLevelSuccessor(ProgramPoint(ctx, succ), mapping.first);
 }
 
+/**
+ * Computes the taint value for an instruction based on the taint of its operands.
+ * Merges taint values of all operands to determine the resulting taint.
+ * 
+ * @param ctx Context in which the instruction is evaluated
+ * @param inst Instruction to evaluate
+ * @return Merged taint lattice value from all operands
+ */
 TaintLattice TransferFunction::getTaintForOperands(const context::Context* ctx, const Instruction* inst)
 {
 	TaintLattice currVal = TaintLattice::Unknown;
@@ -56,6 +83,14 @@ TaintLattice TransferFunction::getTaintForOperands(const context::Context* ctx, 
 	return currVal;
 }
 
+/**
+ * Evaluates an entry point in the taint analysis.
+ * Adds appropriate successors based on environment changes.
+ * 
+ * @param pp Current program point
+ * @param evalResult Result container to store evaluation results
+ * @param envChanged Flag indicating if the environment has changed
+ */
 void TransferFunction::evalEntry(const ProgramPoint& pp, EvalResult& evalResult, bool envChanged)
 {
 	if (envChanged)
@@ -105,6 +140,13 @@ TaintLattice TransferFunction::loadTaintFromPtsSet(tpa::PtsSet pSet, const Taint
 	return resVal;
 }
 
+/**
+ * Evaluates a load instruction for taint propagation.
+ * Retrieves taint value from memory pointed to by the load's pointer operand.
+ * 
+ * @param pp Current program point (load instruction)
+ * @param evalResult Result container to store evaluation results
+ */
 void TransferFunction::evalLoad(const ProgramPoint& pp, EvalResult& evalResult)
 {
 	if (localState == nullptr)
@@ -126,11 +168,27 @@ void TransferFunction::evalLoad(const ProgramPoint& pp, EvalResult& evalResult)
 	}
 }
 
+/**
+ * Performs a strong update of taint value for a memory object in the store.
+ * A strong update completely replaces the previous taint value.
+ * 
+ * @param obj Memory object to update
+ * @param v New taint value
+ * @param store Taint store to update
+ */
 void TransferFunction::strongUpdateStore(const MemoryObject* obj, TaintLattice v, TaintStore& store)
 {
 	store.strongUpdate(obj, v);
 }
 
+/**
+ * Performs a weak update of taint value for all memory objects in a points-to set.
+ * A weak update merges the new taint value with existing values.
+ * 
+ * @param pSet Set of memory objects to update
+ * @param v New taint value to merge
+ * @param store Taint store to update
+ */
 void TransferFunction::weakUpdateStore(PtsSet pSet, TaintLattice v, TaintStore& store)
 {
 	for (auto obj: pSet)
