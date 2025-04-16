@@ -151,6 +151,14 @@ Use with `-taint-config [file]` to specify a custom configuration file.
   - `lib/SRAA/vSSA.cpp`: Value-based Static Single Assignment form implementation
   - `include/SRAA`: Interface definitions for SRAA and supporting analyses
 
+### 7. Alias Analysis Collection
+- **Description**: Lightweight but effective alias analysis implementations
+- **Components**:
+  - `lib/Alias/`: Contains merged implementations of three lightweight alias analyses:
+    - Andersen's points-to analysis: Flow-insensitive points-to analysis
+    - DyckAA: Context-sensitive alias analysis
+    - Type-based alias analysis: Uses type information to determine potential aliases
+
 ## Configuration Files
 
 Cactus uses several configuration files in the `config/` directory:
@@ -194,6 +202,7 @@ free MOD_ARG NONE             # free modifies its arguments
   - `PointerAnalysis/`: Pointer analysis implementation
   - `SVF/`: Static Value-Flow analysis framework
   - `SRAA/`: Strict Relation Alias Analysis implementation
+  - `Alias/`: Lightweight alias analysis implementations
   - `TaintAnalysis/`: Taint analysis implementation
   - `Dynamic/`: Dynamic analysis support
   - `Annotation/`: Code annotation utilities

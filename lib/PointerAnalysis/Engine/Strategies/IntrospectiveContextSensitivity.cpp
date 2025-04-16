@@ -12,8 +12,8 @@
 #include "PointerAnalysis/MemoryModel/MemoryManager.h"
 #include "PointerAnalysis/MemoryModel/PointerManager.h"
 
-#include "FPAnalysis/Canary/DyckAA/DyckAliasAnalysis.h"
-#include "FPAnalysis/Canary/DyckAA/AAAnalyzer.h"
+#include "Alias/Canary/DyckAA/DyckAliasAnalysis.h"
+#include "Alias/Canary/DyckAA/AAAnalyzer.h"
 #include "FPAnalysis/TypeAnalysis.h"
 
 #include <llvm/IR/Module.h>

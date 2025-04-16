@@ -1,18 +1,20 @@
-#include <set>
-#include <vector>
-#include <map>
-#include <fstream>
-#include <iostream>
-#include <iomanip>   // setw() for formatting cout
+
 #include "Util/SparrowUtils/CPPUtil.h"
-#include <assert.h>
-#include <stack>
 #include "FPAnalysis/CHA/CHA.h"
 #include <llvm/Support/CommandLine.h>
 #include <llvm/IR/DebugInfo.h> // for debuginfo like DILocation
 #include <llvm/Support/DOTGraphTraits.h>	// for dot graph traits
 #include "Util/SparrowUtils/GraphUtil.h"
 #include "Util/SparrowUtils/AnalysisUtil.h"
+
+#include <assert.h>
+#include <stack>
+#include <set>
+#include <vector>
+#include <map>
+#include <fstream>
+#include <iostream>
+#include <iomanip>   // setw() for formatting cout
 
 using namespace llvm;
 using namespace cppUtil;

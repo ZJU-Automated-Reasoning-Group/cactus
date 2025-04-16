@@ -13,7 +13,7 @@
 #include "FPAnalysis/SimpleFPAnalysis.h"
 #include "FPAnalysis/TypeAnalysis.h"
 #include "Util/SparrowUtils/Common.h"
-
+#include "Alias/Canary/DyckAA/DyckAliasAnalysis.h"
 using namespace llvm;
 
 

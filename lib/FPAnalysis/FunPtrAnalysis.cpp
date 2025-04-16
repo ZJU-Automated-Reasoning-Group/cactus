@@ -18,7 +18,7 @@
 
 #include "FPAnalysis/FunPtrAnalysis.h"
 #include "FPAnalysis/TypeAnalysis.h"
-#include "FPAnalysis/Canary/DyckAA/DyckAliasAnalysis.h"
+#include "Alias/Canary/DyckAA/DyckAliasAnalysis.h"
 
 static llvm::RegisterPass<FPAnalysis> X("cg", "Function Pointer Analysis", true, false);
 

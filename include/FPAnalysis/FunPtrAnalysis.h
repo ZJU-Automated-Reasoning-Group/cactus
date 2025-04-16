@@ -6,7 +6,7 @@
 #include <llvm/Analysis/AliasAnalysis.h>
 #include <llvm/Analysis/LoopInfo.h>
 
-#include "FPAnalysis/Canary/DyckAA/DyckAliasAnalysis.h"
+#include "Alias/Canary/DyckAA/DyckAliasAnalysis.h"
 #include "FPAnalysis/CHA/CHA.h"
 #include "FPAnalysis/TypeAnalysis.h"
 #include "FPAnalysis/SimpleFPAnalysis.h"

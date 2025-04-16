@@ -60,14 +60,23 @@ configure_file(config/modref.config modref.config COPYONLY)
 configure_file(config/taint.config taint.config COPYONLY)
 
 
-include_directories(
+# Set up include paths more elegantly
+set(CACTUS_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/include/SVF
-    ${CMAKE_CURRENT_SOURCE_DIR}/lib/SVF/CUDD
-    ${CMAKE_CURRENT_SOURCE_DIR}/lib/SVF/CUDD/CUDD
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib
     ${CMAKE_CURRENT_SOURCE_DIR}
     ${CMAKE_CURRENT_BINARY_DIR}/include
-    ${CMAKE_CURRENT_SOURCE_DIR}/lib
+)
+
+set(CUDD_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/SVF/CUDD
+    ${CMAKE_CURRENT_SOURCE_DIR}/lib/SVF/CUDD/CUDD
+)
+
+include_directories(
+    ${CACTUS_INCLUDE_DIRS}
+    ${CUDD_INCLUDE_DIRS}
 )
 
 # Specify library and binary output dir
