@@ -15,58 +15,115 @@
 namespace context
 {
 
+/**
+ * @class SelectiveKCFA
+ * @brief Provides a selective k-limited context-sensitivity policy.
+ *
+ * This class implements a more flexible context-sensitivity policy than KLimitContext,
+ * allowing different k values to be used for different parts of the program.
+ * Specific call sites and allocation sites can have their own k limits, 
+ * enabling a fine-grained balance between precision and performance.
+ */
 class SelectiveKCFA
 {
 private:
-    // Default k limit if no specific value is specified
-    static unsigned defaultLimit;
+    static unsigned defaultLimit;  ///< Default k limit if no specific value is specified
     
-    // Maps call sites to their specific k values
-    static std::unordered_map<const llvm::Instruction*, unsigned> callSiteKLimits;
+    static std::unordered_map<const llvm::Instruction*, unsigned> callSiteKLimits;  ///< Maps call sites to their specific k values
     
-    // Maps allocation sites to their specific k values
-    static std::unordered_map<const llvm::Instruction*, unsigned> allocSiteKLimits;
+    static std::unordered_map<const llvm::Instruction*, unsigned> allocSiteKLimits;  ///< Maps allocation sites to their specific k values
     
 public:
-    // Set the default k limit
+    /**
+     * @brief Sets the default k limit
+     * @param k The default k limit to use
+     */
     static void setDefaultLimit(unsigned k) { defaultLimit = k; }
     
-    // Get the default k limit
+    /**
+     * @brief Gets the default k limit
+     * @return The current default k limit
+     */
     static unsigned getDefaultLimit() { return defaultLimit; }
     
-    // Set k limit for a specific call site
+    /**
+     * @brief Sets a specific k limit for a call site
+     * @param callSite The call instruction
+     * @param k The k limit to use for this call site
+     */
     static void setCallSiteLimit(const llvm::Instruction* callSite, unsigned k);
     
-    // Set k limit for a specific allocation site
+    /**
+     * @brief Sets a specific k limit for an allocation site
+     * @param allocSite The allocation instruction
+     * @param k The k limit to use for this allocation site
+     */
     static void setAllocSiteLimit(const llvm::Instruction* allocSite, unsigned k);
     
-    // Get k limit for a specific call site (returns default if not set)
+    /**
+     * @brief Gets the k limit for a specific call site
+     * @param callSite The call instruction
+     * @return The k limit for this call site, or the default if not set
+     */
     static unsigned getCallSiteLimit(const llvm::Instruction* callSite);
     
-    // Get k limit for a specific allocation site (returns default if not set)
+    /**
+     * @brief Gets the k limit for a specific allocation site
+     * @param allocSite The allocation instruction
+     * @return The k limit for this allocation site, or the default if not set
+     */
     static unsigned getAllocSiteLimit(const llvm::Instruction* allocSite);
     
-    // Push context considering the selective k limit for the call site
+    /**
+     * @brief Creates a new context by pushing a call site, using the appropriate k limit
+     * @param ctx The existing context
+     * @param inst The call instruction to push
+     * @return A pointer to the new (or existing) context
+     */
     static const Context* pushContext(const Context* ctx, const llvm::Instruction* inst);
     
-    // Push context from a program point
+    /**
+     * @brief Creates a new context by pushing a call site from a program point
+     * @param pp The program point containing context and instruction
+     * @return A pointer to the new (or existing) context
+     */
     static const Context* pushContext(const ProgramPoint& pp);
     
     // Utility functions
     
-    // Set k limit for all call sites within a specific function
+    /**
+     * @brief Sets the k limit for all call sites within a specific function
+     * @param func The function whose call sites to configure
+     * @param k The k limit to use
+     */
     static void setKLimitForFunctionCallSites(const llvm::Function* func, unsigned k);
     
-    // Set k limit for all allocation sites within a specific function
+    /**
+     * @brief Sets the k limit for all allocation sites within a specific function
+     * @param func The function whose allocation sites to configure
+     * @param k The k limit to use
+     */
     static void setKLimitForFunctionAllocSites(const llvm::Function* func, unsigned k);
     
-    // Set k limit for call sites that match a pattern
+    /**
+     * @brief Sets the k limit for call sites that match a name pattern
+     * @param module The module to search in
+     * @param pattern The name pattern to match against
+     * @param k The k limit to use
+     */
     static void setKLimitForCallSitesByName(const llvm::Module* module, const std::string& pattern, unsigned k);
     
-    // Set k limit for all call sites in a list of functions
+    /**
+     * @brief Sets the k limit for all call sites in a list of functions
+     * @param funcs The list of functions whose call sites to configure
+     * @param k The k limit to use
+     */
     static void setKLimitForFunctionsList(const std::vector<const llvm::Function*>& funcs, unsigned k);
     
-    // Print statistics about the current configuration
+    /**
+     * @brief Prints statistics about the current selective KCFA configuration
+     * @param os The output stream to print to (defaults to stderr)
+     */
     static void printStats(llvm::raw_ostream& os = llvm::errs());
 };
 

@@ -45,11 +45,12 @@
 #include "llvm/Support/TimeValue.h"
 #include "llvm/Support/Process.h"
 #include "llvm/Support/FileSystem.h"
+
 #include <deque>
 #include <stack>
-#include <set>
 #include <sstream>
 #include <algorithm>
+#include <set>
 
 using namespace llvm;
 

@@ -1,7 +1,7 @@
-
 #pragma once
 
-#include "DyckVertex.h"
+#include "Alias/Canary/DyckGraph/DyckVertex.h"
+
 #include <unordered_map>
 #include <stack>
 

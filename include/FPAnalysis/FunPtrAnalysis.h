@@ -1,16 +1,16 @@
 #pragma once
 
-#include <set>
-#include <vector>
-#include <llvm/Analysis/ScalarEvolution.h>
-#include <llvm/Analysis/AliasAnalysis.h>
-#include <llvm/Analysis/LoopInfo.h>
-
 #include "Alias/Canary/DyckAA/DyckAliasAnalysis.h"
 #include "FPAnalysis/CHA/CHA.h"
 #include "FPAnalysis/TypeAnalysis.h"
 #include "FPAnalysis/SimpleFPAnalysis.h"
 
+#include <llvm/Analysis/ScalarEvolution.h>
+#include <llvm/Analysis/AliasAnalysis.h>
+#include <llvm/Analysis/LoopInfo.h>
+
+#include <set>
+// #include <vector>
 
 using namespace llvm;
 
