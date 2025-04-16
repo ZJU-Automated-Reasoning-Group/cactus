@@ -1,3 +1,11 @@
+/**
+ * @file ModRefModuleAnalysis.cpp
+ * @brief Implementation of the Mod-Ref analysis for LLVM modules
+ *
+ * This file provides a module-level analysis that tracks which memory locations
+ * and values are modified (mod) or referenced (ref) by each function. The analysis
+ * creates summaries for each function and propagates them through the call graph.
+ */
 #include "Annotation/ModRef/ExternalModRefTable.h"
 #include "PointerAnalysis/Analysis/SemiSparsePointerAnalysis.h"
 #include "PointerAnalysis/MemoryModel/MemoryObject.h"
@@ -15,11 +23,25 @@ using namespace tpa;
 namespace taint
 {
 
+/**
+ * Reverse call map that maps function definitions to their call sites.
+ * Used for propagating summaries backwards from callees to callers.
+ */
 using RevCallMapType = std::unordered_map<const Function*, util::VectorSet<const Instruction*>>;
 
 namespace
 {
 
+/**
+ * Determines if a memory object is allocated on the local stack of a function.
+ *
+ * Local stack allocations don't need to be tracked in mod-ref summaries because
+ * they're not visible outside the function.
+ *
+ * @param loc The memory object to check
+ * @param f The function context in which the object is being accessed
+ * @return true if the location is a local stack allocation or special object
+ */
 inline bool isLocalStackLocation(const MemoryObject* loc, const Function* f)
 {
 	auto const& allocSite = loc->getAllocSite();
@@ -44,6 +66,17 @@ inline bool isLocalStackLocation(const MemoryObject* loc, const Function* f)
 	}
 }
 
+/**
+ * Updates a caller's mod-ref summary by incorporating effects from a callee's summary.
+ *
+ * Propagates value reads and memory reads/writes from the callee to the caller,
+ * filtering out effects on local stack allocations.
+ *
+ * @param callerSummary The summary to update
+ * @param calleeSummary The summary containing effects to propagate
+ * @param caller The caller function
+ * @return true if the caller's summary was changed
+ */
 bool updateSummary(ModRefFunctionSummary& callerSummary, const ModRefFunctionSummary& calleeSummary, const Function* caller)
 {
 	bool changed = false;
@@ -64,6 +97,15 @@ bool updateSummary(ModRefFunctionSummary& callerSummary, const ModRefFunctionSum
 	return changed;
 }
 
+/**
+ * Updates the reverse call graph by identifying all call sites within a function.
+ *
+ * For each call site, adds an entry mapping the callee to the instruction that calls it.
+ *
+ * @param revCallGraph The reverse call graph to update
+ * @param f The function containing call sites to analyze
+ * @param ptrAnalysis The pointer analysis used to resolve indirect calls
+ */
 void updateRevCallGraph(RevCallMapType& revCallGraph, const Function& f, const SemiSparsePointerAnalysis& ptrAnalysis)
 {
 	for (auto const& bb: f)
@@ -81,15 +123,25 @@ void updateRevCallGraph(RevCallMapType& revCallGraph, const Function& f, const S
 	}
 }
 
+/**
+ * InstVisitor that collects mod-ref information from individual instructions.
+ *
+ * Visits loads, stores, and other instructions to identify values and memory locations
+ * that are read or written by a function.
+ */
 class SummaryInstVisitor: public InstVisitor<SummaryInstVisitor>
 {
 private:
 	const SemiSparsePointerAnalysis& ptrAnalysis;
-
 	ModRefFunctionSummary& summary;
 public:
 	SummaryInstVisitor(const SemiSparsePointerAnalysis& p, ModRefFunctionSummary& s): ptrAnalysis(p), summary(s) {}
 
+	/**
+	 * Processes a load instruction, recording the values and memory locations it reads.
+	 *
+	 * @param loadInst The load instruction to process
+	 */
 	void visitLoadInst(LoadInst& loadInst)
 	{
 		auto ptrOp = loadInst.getPointerOperand();
@@ -103,6 +155,11 @@ public:
 		}
 	}
 
+	/**
+	 * Processes a store instruction, recording the values it reads and memory locations it writes.
+	 *
+	 * @param storeInst The store instruction to process
+	 */
 	void visitStoreInst(StoreInst& storeInst)
 	{
 		auto storeSrc = storeInst.getValueOperand();
@@ -121,6 +178,11 @@ public:
 		}
 	}
 
+	/**
+	 * Processes any other instruction, recording global values it reads.
+	 *
+	 * @param inst The instruction to process
+	 */
 	void visitInstruction(Instruction& inst)
 	{
 		for (auto& use: inst.operands())
@@ -132,6 +194,16 @@ public:
 	}
 };
 
+/**
+ * Adds memory write effects to a function summary based on an external function's modification effects.
+ *
+ * @param v The value (typically a function argument) through which memory is accessed
+ * @param summary The summary to update
+ * @param caller The calling function
+ * @param ptrAnalysis The pointer analysis used to resolve memory locations
+ * @param isReachableMemory Whether the effect applies to all reachable memory (true) or just direct memory (false)
+ * @return true if the summary was changed
+ */
 bool addExternalMemoryWrite(const Value* v, ModRefFunctionSummary& summary, const Function* caller, const SemiSparsePointerAnalysis& ptrAnalysis, bool isReachableMemory)
 {
 	auto changed = false;
@@ -153,6 +225,15 @@ bool addExternalMemoryWrite(const Value* v, ModRefFunctionSummary& summary, cons
 	return changed;
 }
 
+/**
+ * Updates a function summary based on a modification effect from an external function call.
+ *
+ * @param inst The call instruction
+ * @param summary The summary to update
+ * @param ptrAnalysis The pointer analysis used to resolve memory locations
+ * @param modEffect The modification effect to apply
+ * @return true if the summary was changed
+ */
 bool updateSummaryForModEffect(const Instruction* inst, ModRefFunctionSummary& summary, const SemiSparsePointerAnalysis& ptrAnalysis, const ModRefEffect& modEffect)
 {
 	assert(modEffect.isModEffect());
@@ -187,6 +268,16 @@ bool updateSummaryForModEffect(const Instruction* inst, ModRefFunctionSummary& s
 	}
 }
 
+/**
+ * Adds memory read effects to a function summary based on an external function's reference effects.
+ *
+ * @param v The value (typically a function argument) through which memory is accessed
+ * @param summary The summary to update
+ * @param caller The calling function
+ * @param ptrAnalysis The pointer analysis used to resolve memory locations
+ * @param isReachableMemory Whether the effect applies to all reachable memory (true) or just direct memory (false)
+ * @return true if the summary was changed
+ */
 bool addExternalMemoryRead(const Value* v, ModRefFunctionSummary& summary, const Function* caller, const SemiSparsePointerAnalysis& ptrAnalysis, bool isReachableMemory)
 {
 	bool changed = false;
@@ -208,6 +299,15 @@ bool addExternalMemoryRead(const Value* v, ModRefFunctionSummary& summary, const
 	return changed;
 }
 
+/**
+ * Updates a function summary based on a reference effect from an external function call.
+ *
+ * @param inst The call instruction
+ * @param summary The summary to update
+ * @param ptrAnalysis The pointer analysis used to resolve memory locations
+ * @param refEffect The reference effect to apply
+ * @return true if the summary was changed
+ */
 bool updateSummaryForRefEffect(const Instruction* inst, ModRefFunctionSummary& summary, const SemiSparsePointerAnalysis& ptrAnalysis, const ModRefEffect& refEffect)
 {
 	assert(refEffect.isRefEffect());
@@ -242,6 +342,16 @@ bool updateSummaryForRefEffect(const Instruction* inst, ModRefFunctionSummary& s
 	}
 }
 
+/**
+ * Updates a function summary based on a call to an external function with mod-ref effects.
+ *
+ * @param inst The call instruction
+ * @param f The external function being called
+ * @param summary The summary to update
+ * @param ptrAnalysis The pointer analysis used to resolve memory locations
+ * @param modRefTable The table of mod-ref effects for external functions
+ * @return true if the summary was changed
+ */
 bool updateSummaryForExternalCall(const Instruction* inst, const Function* f, ModRefFunctionSummary& summary, const SemiSparsePointerAnalysis& ptrAnalysis, const ExternalModRefTable& modRefTable)
 {
 	auto modRefSummary = modRefTable.lookup(f->getName());
@@ -263,6 +373,17 @@ bool updateSummaryForExternalCall(const Instruction* inst, const Function* f, Mo
 	return changed;
 }
 
+/**
+ * Propagates mod-ref summaries through the call graph until a fixed point is reached.
+ *
+ * Uses a work list algorithm to propagate effects from callees back to their callers.
+ * When a function's summary changes, all of its callers are re-analyzed.
+ *
+ * @param moduleSummary The module summary to populate
+ * @param revCallGraph The reverse call graph mapping functions to their call sites
+ * @param ptrAnalysis The pointer analysis used to resolve memory locations
+ * @param modRefTable The table of mod-ref effects for external functions
+ */
 void propagateSummary(ModRefModuleSummary& moduleSummary, const RevCallMapType& revCallGraph, const SemiSparsePointerAnalysis& ptrAnalysis, const ExternalModRefTable& modRefTable)
 {
 	auto workList = util::FIFOWorkList<const Function*>();
@@ -308,12 +429,27 @@ void propagateSummary(ModRefModuleSummary& moduleSummary, const RevCallMapType& 
 
 }	// end of anonymous namespace
 
+/**
+ * Collects mod-ref information for a single function by visiting its instructions.
+ *
+ * @param f The function to analyze
+ * @param summary The summary to populate with mod-ref information
+ */
 void ModRefModuleAnalysis::collectProcedureSummary(const Function& f, ModRefFunctionSummary& summary)
 {
 	SummaryInstVisitor summaryVisitor(ptrAnalysis, summary);
 	summaryVisitor.visit(const_cast<Function&>(f));
 }
 
+/**
+ * Runs the mod-ref analysis on an entire module.
+ *
+ * First collects summaries for individual functions, then propagates the effects
+ * through the call graph until a fixed point is reached.
+ *
+ * @param module The LLVM module to analyze
+ * @return A module summary containing mod-ref information for all functions
+ */
 ModRefModuleSummary ModRefModuleAnalysis::runOnModule(const Module& module)
 {
 	ModRefModuleSummary moduleSummary;

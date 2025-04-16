@@ -1,3 +1,11 @@
+/**
+ * @file PrecisionLossTracker.cpp
+ * @brief Implementation of precision loss tracking for taint analysis
+ *
+ * This file provides functionality to track the sources of imprecision in taint analysis
+ * that lead to false positives at taint sinks. The tracker works backward from sink
+ * violations to identify program points that contribute to imprecision.
+ */
 #include "PointerAnalysis/Analysis/SemiSparsePointerAnalysis.h"
 #include "TaintAnalysis/Engine/TaintGlobalState.h"
 #include "TaintAnalysis/Precision/LocalTracker.h"
@@ -13,6 +21,15 @@
 namespace taint
 {
 
+/**
+ * Initializes the work list with starting points for tracking imprecision.
+ * 
+ * This function identifies program points with Either (imprecise) taint values
+ * at sink violations and adds them to the work list for backward tracking.
+ *
+ * @param workList The work list to initialize with starting points
+ * @param record The record of sink violations to analyze
+ */
 void PrecisionLossTracker::initializeWorkList(TrackerWorkList& workList, const SinkViolationRecord& record)
 {
 	auto const& ptrAnalysis = globalState.getPointerAnalysis();
@@ -28,6 +45,7 @@ void PrecisionLossTracker::initializeWorkList(TrackerWorkList& workList, const S
 		
 		for (auto const& violation: mapping.second)
 		{
+			// Only track Either values which represent imprecision
 			if (violation.actualVal != TaintLattice::Either)
 				continue;
 
@@ -45,12 +63,23 @@ void PrecisionLossTracker::initializeWorkList(TrackerWorkList& workList, const S
 			}
 		}
 
+		// Initialize tracking for identified imprecise values and memory objects
 		LocalTracker tracker(workList);
 		tracker.trackValue(pp, trackedValues);
 		tracker.trackMemory(pp, trackedObjects);
 	}
 }
 
+/**
+ * Tracks sources of imprecision through the program from sink violations.
+ * 
+ * This is the main entry point for precision loss tracking. It performs
+ * a backward analysis starting from sink violations to identify program
+ * points that contribute to imprecision (taint values of "Either").
+ *
+ * @param record The record of sink violations to analyze
+ * @return A set of program points that contribute to imprecision
+ */
 ProgramPointSet PrecisionLossTracker::trackImprecision(const SinkViolationRecord& record)
 {
 	ProgramPointSet ppSet;
@@ -62,7 +91,7 @@ ProgramPointSet PrecisionLossTracker::trackImprecision(const SinkViolationRecord
 	TrackerWorkList workList;
 	initializeWorkList(workList, record);
 
-	// The main analysis
+	// The main backward analysis
 	while (!workList.empty())
 	{
 		auto pp = workList.dequeue();

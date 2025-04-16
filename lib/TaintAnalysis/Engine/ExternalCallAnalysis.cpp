@@ -1,3 +1,10 @@
+/**
+ * @file ExternalCallAnalysis.cpp
+ * @brief Implementation of taint analysis for external function calls
+ *
+ * This file provides functions for analyzing external function calls and 
+ * propagating taint information according to function-specific taint specifications.
+ */
 #include "Annotation/Taint/ExternalTaintTable.h"
 #include "PointerAnalysis/Analysis/SemiSparsePointerAnalysis.h"
 #include "TaintAnalysis/Engine/TaintGlobalState.h"
@@ -16,6 +23,16 @@ using namespace llvm;
 namespace taint
 {
 
+/**
+ * Updates taint information for direct memory objects based on a TaintValue.
+ * This function identifies memory objects pointed to by the given TaintValue and
+ * applies the specified taint value to those objects.
+ *
+ * @param tv The TaintValue containing the pointer
+ * @param taintVal The taint lattice value to apply
+ * @param pp The program point where the update occurs
+ * @param evalResult Container for evaluation results
+ */
 void TransferFunction::updateDirectMemoryTaint(const TaintValue& tv, TaintLattice taintVal, const ProgramPoint& pp, EvalResult& evalResult)
 {
 	auto const& ptrAnalysis = globalState.getPointerAnalysis();
@@ -30,6 +47,16 @@ void TransferFunction::updateDirectMemoryTaint(const TaintValue& tv, TaintLattic
 	}
 }
 
+/**
+ * Updates taint information for all memory objects reachable from a TaintValue.
+ * This function finds all memory objects that can be reached by following pointers
+ * from the given TaintValue and applies the specified taint value to those objects.
+ *
+ * @param tv The TaintValue containing the pointer
+ * @param taintVal The taint lattice value to apply
+ * @param pp The program point where the update occurs
+ * @param evalResult Container for evaluation results
+ */
 void TransferFunction::updateReachableMemoryTaint(const TaintValue& tv, TaintLattice taintVal, const ProgramPoint& pp, EvalResult& evalResult)
 {
 	auto const& ptrAnalysis = globalState.getPointerAnalysis();
@@ -52,6 +79,17 @@ void TransferFunction::updateReachableMemoryTaint(const TaintValue& tv, TaintLat
 	}
 }
 
+/**
+ * Updates taint information for a TaintValue based on the specified taint class.
+ * Different taint classes (ValueOnly, DirectMemory, ReachableMemory) require different
+ * update strategies.
+ *
+ * @param tv The TaintValue to update
+ * @param taintClass The taint class specifying how to interpret the taint value
+ * @param taintVal The taint lattice value to apply
+ * @param pp The program point where the update occurs
+ * @param evalResult Container for evaluation results
+ */
 void TransferFunction::updateTaintValueByTClass(const TaintValue& tv, TClass taintClass, TaintLattice taintVal, const ProgramPoint& pp, EvalResult& evalResult)
 {
 	switch (taintClass)
@@ -76,6 +114,16 @@ void TransferFunction::updateTaintValueByTClass(const TaintValue& tv, TClass tai
 	}
 }
 
+/**
+ * Updates taint information at a call site based on a specified position and taint class.
+ * The position can be a return value or an argument position.
+ *
+ * @param pp The program point (call site) where the update occurs
+ * @param taintPos The position (return or argument) to update
+ * @param taintClass The taint class specifying how to interpret the taint value
+ * @param taintVal The taint lattice value to apply
+ * @param evalResult Container for evaluation results
+ */
 void TransferFunction::updateTaintCallByTPosition(const ProgramPoint& pp, TPosition taintPos, TClass taintClass, TaintLattice taintVal, EvalResult& evalResult)
 {
 	ImmutableCallSite cs(pp.getDefUseInstruction()->getInstruction());
@@ -105,7 +153,16 @@ void TransferFunction::updateTaintCallByTPosition(const ProgramPoint& pp, TPosit
 	}
 }
 
-void TransferFunction::evalTaintSource(const ProgramPoint& pp, const SourceTaintEntry& entry, EvalResult& evalResult)
+/**
+ * Evaluates how taint is generated at a source specified by a source taint entry.
+ * Sources introduce new taint values into the program based on function-specific
+ * taint specifications.
+ *
+ * @param pp The program point (call site) where taint is generated
+ * @param entry The source taint entry specifying what gets tainted
+ * @param evalResult Container for evaluation results
+ */
+void TransferFunction::evalTaintSource(const ProgramPoint& pp, const annotation::SourceTaintEntry& entry, EvalResult& evalResult)
 {
 	auto tPos = entry.getTaintPosition();
 	auto tClass = entry.getTaintClass();
@@ -119,6 +176,14 @@ void TransferFunction::evalTaintSource(const ProgramPoint& pp, const SourceTaint
 	updateTaintCallByTPosition(pp, tPos, tClass, entry.getTaintValue(), evalResult);
 }
 
+/**
+ * Gets the appropriate taint value for a TaintValue based on a specified taint class.
+ * Different taint classes require different lookup strategies.
+ *
+ * @param tv The TaintValue to look up
+ * @param tClass The taint class specifying how to interpret the taint value
+ * @return The computed taint lattice value
+ */
 TaintLattice TransferFunction::getTaintValueByTClass(const TaintValue& tv, TClass tClass)
 {
 	switch (tClass)
@@ -222,6 +287,15 @@ void TransferFunction::evalMemcpy(const TaintValue& srcVal, const TaintValue& ds
 	}
 }
 
+/**
+ * Evaluates how taint flows through a pipe specified by a pipe taint entry.
+ * Pipes transfer taint from one position (source) to another position (destination)
+ * based on function-specific taint specifications.
+ *
+ * @param pp The program point (call site) where taint flows
+ * @param entry The pipe taint entry specifying the taint flow
+ * @param evalResult Container for evaluation results
+ */
 void TransferFunction::evalTaintPipe(const ProgramPoint& pp, const annotation::PipeTaintEntry& entry, EvalResult& evalResult)
 {
 	ImmutableCallSite cs(pp.getDefUseInstruction()->getInstruction());
@@ -256,7 +330,15 @@ void TransferFunction::evalTaintPipe(const ProgramPoint& pp, const annotation::P
 	}
 }
 
-
+/**
+ * Evaluates a function call using its taint summary.
+ * Processes all entries in the summary and updates taint information accordingly.
+ *
+ * @param pp The program point (call site) to evaluate
+ * @param callee The function being called
+ * @param summary The taint summary containing taint specifications
+ * @param evalResult Container for evaluation results
+ */
 void TransferFunction::evalCallBySummary(const ProgramPoint& pp, const Function* callee, const TaintSummary& summary, EvalResult& evalResult)
 {
 	bool isSink = false;
@@ -281,6 +363,14 @@ void TransferFunction::evalCallBySummary(const ProgramPoint& pp, const Function*
 		globalState.getSinks().insert(SinkSignature(pp, callee));
 }
 
+/**
+ * Evaluates an external function call for taint analysis.
+ * Looks up the function's taint summary and processes it, or warns if no summary exists.
+ *
+ * @param pp The program point (call site) to evaluate
+ * @param func The external function being called
+ * @param evalResult Container for evaluation results
+ */
 void TransferFunction::evalExternalCall(const ProgramPoint& pp, const Function* func, EvalResult& evalResult)
 {
 	auto funName = func->getName();
