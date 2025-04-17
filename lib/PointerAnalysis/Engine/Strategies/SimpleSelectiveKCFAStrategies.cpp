@@ -12,7 +12,16 @@ using namespace llvm;
 namespace tpa
 {
 
-// A visitor to count different types of instructions in a function
+/**
+ * @brief Visitor class to count different types of instructions in a function
+ * 
+ * This class tracks:
+ * - The total number of instructions
+ * - The number of allocation sites (alloca, malloc, new, etc.)
+ * - The number of call sites
+ * 
+ * These metrics are used to make heuristic decisions about context sensitivity.
+ */
 class InstructionCounter : public InstVisitor<InstructionCounter>
 {
 private:
@@ -42,6 +51,20 @@ public:
     unsigned getTotalInsts() const { return totalInsts; }
 };
 
+/**
+ * @brief Configures SelectiveKCFA with a basic heuristic-based strategy
+ * 
+ * @param module The LLVM module to analyze
+ * 
+ * This strategy:
+ * - Sets default k limit to 1
+ * - Uses higher k (3) for small functions (<50 instructions)
+ * - Uses lower k (0) for large functions (>200 instructions) or call-heavy functions (>20 calls)
+ * - Uses very high k (4) for specific important functions like main
+ * 
+ * This approach prioritizes precision for small functions that are more
+ * likely to benefit from context sensitivity without excessive cost.
+ */
 void SelectiveKCFAStrategies::configureBasicStrategy(const Module* module)
 {
     // Set default k limit to 1
@@ -74,6 +97,20 @@ void SelectiveKCFAStrategies::configureBasicStrategy(const Module* module)
     context::SelectiveKCFA::setKLimitForCallSitesByName(module, "process.*", 4);
 }
 
+/**
+ * @brief Configures SelectiveKCFA based on function size and allocation site density
+ * 
+ * @param module The LLVM module to analyze
+ * 
+ * This strategy:
+ * - Sets default k limit to 1
+ * - Uses higher k (3) for small functions
+ * - Uses lower k (0) for large functions
+ * - Adjusts allocation site sensitivity based on allocation density
+ * 
+ * This approach recognizes that allocation-heavy functions may benefit from
+ * different k values for allocation sites versus call sites.
+ */
 void SelectiveKCFAStrategies::configureKLimitsByHeuristic(const Module* module)
 {
     // Set a default k limit of 1
@@ -108,6 +145,21 @@ void SelectiveKCFAStrategies::configureKLimitsByHeuristic(const Module* module)
     }
 }
 
+/**
+ * @brief Configures SelectiveKCFA based on how frequently functions are called
+ * 
+ * @param module The LLVM module to analyze
+ * 
+ * This strategy:
+ * - Sets default k limit to 1
+ * - First counts how often each function is called in the program
+ * - Uses lower k (0) for frequently called functions (>10 calls)
+ * - Uses medium k (1) for moderately called functions (6-10 calls)
+ * - Uses higher k (3) for rarely called functions (1-5 calls)
+ * 
+ * The rationale is that frequently called functions can create many contexts,
+ * potentially causing context explosion, so they should have lower k values.
+ */
 void SelectiveKCFAStrategies::configureKLimitsByCallFrequency(const Module* module)
 {
     // Set a default k limit of 1
@@ -153,6 +205,14 @@ void SelectiveKCFAStrategies::configureKLimitsByCallFrequency(const Module* modu
     }
 }
 
+/**
+ * @brief Prints statistics about the configured SelectiveKCFA strategy
+ * 
+ * @param os The output stream to print to
+ * 
+ * This method delegates to SelectiveKCFA's printStats method to display
+ * information about how context sensitivity has been configured.
+ */
 void SelectiveKCFAStrategies::printStats(raw_ostream& os)
 {
     os << "SelectiveKCFA Strategy Configuration Statistics:\n";

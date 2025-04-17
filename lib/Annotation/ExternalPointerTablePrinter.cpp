@@ -8,6 +8,15 @@ using namespace llvm;
 namespace annotation
 {
 
+/**
+ * Prints an annotation position to the output stream
+ * 
+ * @param os The output stream to write to
+ * @param pos The position to print
+ * 
+ * Formats the position either as "(return)" for return positions or as
+ * "(arg N)" for argument positions, where N is the argument index.
+ */
 static void printPosition(raw_ostream& os, const APosition& pos)
 {
 	if (pos.isReturnPosition())
@@ -19,6 +28,15 @@ static void printPosition(raw_ostream& os, const APosition& pos)
 	}
 }
 
+/**
+ * Prints a memory allocation effect to the output stream
+ * 
+ * @param os The output stream to write to
+ * @param allocEffect The allocation effect to print
+ * 
+ * Formats allocation effects showing whether the size is known (and from which position)
+ * or unknown.
+ */
 static void printAllocEffect(raw_ostream& os, const PointerAllocEffect& allocEffect)
 {
 	os << "  Memory allocation with ";
@@ -33,6 +51,18 @@ static void printAllocEffect(raw_ostream& os, const PointerAllocEffect& allocEff
 	}
 }
 
+/**
+ * Prints a copy source to the output stream
+ * 
+ * @param os The output stream to write to
+ * @param src The copy source to print
+ * 
+ * Formats the copy source based on its type:
+ * - Value: The position directly
+ * - DirectMemory: '*' followed by the position
+ * - ReachableMemory: '*[position + x]'
+ * - Special sources like null, universal, or static pointers
+ */
 static void printCopySource(raw_ostream& os, const CopySource& src)
 {
 	switch (src.getType())
@@ -61,6 +91,17 @@ static void printCopySource(raw_ostream& os, const CopySource& src)
 	}
 }
 
+/**
+ * Prints a copy destination to the output stream
+ * 
+ * @param os The output stream to write to
+ * @param dest The copy destination to print
+ * 
+ * Formats the copy destination based on its type:
+ * - Value: The position directly
+ * - DirectMemory: '*' followed by the position
+ * - ReachableMemory: '*[position + x]'
+ */
 static void printCopyDest(raw_ostream& os, const CopyDest& dest)
 {
 	switch (dest.getType())
@@ -80,6 +121,14 @@ static void printCopyDest(raw_ostream& os, const CopyDest& dest)
 	}
 }
 
+/**
+ * Prints a pointer copy effect to the output stream
+ * 
+ * @param os The output stream to write to
+ * @param copyEffect The copy effect to print
+ * 
+ * Formats the copy effect showing the data flow from source to destination.
+ */
 static void printCopyEffect(raw_ostream& os, const PointerCopyEffect& copyEffect)
 {
 	os << "  Copy points-to set from ";
@@ -88,6 +137,14 @@ static void printCopyEffect(raw_ostream& os, const PointerCopyEffect& copyEffect
 	printCopyDest(os, copyEffect.getDest());
 }
 
+/**
+ * Prints a pointer effect to the output stream
+ * 
+ * @param os The output stream to write to
+ * @param effect The pointer effect to print
+ * 
+ * Dispatches to the appropriate printer based on the effect type.
+ */
 static void printPointerEffect(raw_ostream& os, const PointerEffect& effect)
 {
 	switch (effect.getType())
@@ -102,6 +159,15 @@ static void printPointerEffect(raw_ostream& os, const PointerEffect& effect)
 	os << "\n";
 }
 
+/**
+ * Prints the entire external pointer table to the output stream
+ * 
+ * @param table The external pointer table to print
+ * 
+ * This method formats and outputs the full contents of the pointer table,
+ * including each function and its effects. Functions marked as ignored are
+ * specially highlighted. The output is color-coded for better readability.
+ */
 void ExternalPointerTablePrinter::printTable(const ExternalPointerTable& table)
 {
 	os << "\n----- ExternalPointerTable -----\n";

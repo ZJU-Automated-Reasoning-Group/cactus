@@ -12,6 +12,19 @@ using namespace llvm;
 namespace tpa
 {
 
+/**
+ * @brief Translates LLVM basic blocks to pointer analysis CFG nodes
+ * 
+ * @param llvmFunc The LLVM function to translate
+ * 
+ * This method iterates through each basic block and each instruction
+ * in the function, creating pointer analysis CFG nodes for relevant
+ * instructions. It maintains mappings between instructions and CFG nodes,
+ * and between basic blocks and their first/last CFG nodes.
+ * 
+ * Empty basic blocks (those without any pointer-relevant instructions)
+ * are tracked separately for later processing.
+ */
 void FunctionTranslator::translateBasicBlock(const Function& llvmFunc)
 {
 	for (auto const& currBlock: llvmFunc)
@@ -47,7 +60,15 @@ void FunctionTranslator::translateBasicBlock(const Function& llvmFunc)
 	}
 }
 
-// TODO: This function contains some legacy codes. Refactoring needed
+/**
+ * @brief Processes empty basic blocks to maintain control flow
+ * 
+ * Empty basic blocks (those without pointer-relevant instructions) still
+ * need to be processed to maintain the correct control flow in the pointer
+ * analysis CFG. This method performs a non-recursive DFS to find all
+ * reachable non-empty blocks from each empty block, and records the
+ * successors to maintain proper control flow.
+ */
 void FunctionTranslator::processEmptyBlock()
 {
 	auto processedEmptyBlock = SmallPtrSet<const BasicBlock*, 128>();
@@ -95,6 +116,16 @@ void FunctionTranslator::processEmptyBlock()
 	}
 }
 
+/**
+ * @brief Connects CFG nodes based on LLVM basic block control flow
+ * 
+ * @param entryBlock The entry block of the LLVM function
+ * 
+ * This method creates edges between CFG nodes to reflect the control flow
+ * of the original LLVM function. For each basic block, it connects the last
+ * node to the first nodes of all successor blocks. It also connects the
+ * function's entry node to the start of the actual function body.
+ */
 void FunctionTranslator::connectCFGNodes(const BasicBlock& entryBlock)
 {
 	for (auto& mapping: bbToNode)
@@ -130,6 +161,16 @@ void FunctionTranslator::connectCFGNodes(const BasicBlock& entryBlock)
 	}
 }
 
+/**
+ * @brief Creates def-use edges from a definition value to a use node
+ * 
+ * @param defVal The LLVM value (definition)
+ * @param useNode The CFG node (use)
+ * 
+ * This helper method creates appropriate def-use edges for pointer values.
+ * Global values, arguments, and constants are treated as defined at entry.
+ * Instruction definitions are connected to their corresponding nodes.
+ */
 void FunctionTranslator::drawDefUseEdgeFromValue(const Value* defVal, tpa::CFGNode* useNode)
 {
 	assert(defVal != nullptr && useNode != nullptr);
@@ -152,6 +193,20 @@ void FunctionTranslator::drawDefUseEdgeFromValue(const Value* defVal, tpa::CFGNo
 	}
 }
 
+/**
+ * @brief Constructs def-use chains for the entire function
+ * 
+ * Def-use chains track data dependencies between pointer definitions and uses.
+ * This method iterates through all CFG nodes and creates appropriate def-use
+ * edges based on the node type:
+ * - Alloc nodes are defined at entry
+ * - Copy nodes have def-use edges from all source values
+ * - Offset nodes have def-use edges from the base pointer
+ * - Load nodes have def-use edges from the source pointer
+ * - Store nodes have def-use edges from both source and destination
+ * - Call nodes have def-use edges from the function pointer and all arguments
+ * - Return nodes have def-use edges from the return value
+ */
 void FunctionTranslator::constructDefUseChains()
 {
 	for (auto useNode: cfg)

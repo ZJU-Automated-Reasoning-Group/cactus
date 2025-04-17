@@ -10,6 +10,23 @@ using namespace pcomb;
 namespace annotation
 {
 
+/**
+ * Builds a taint analysis table from a configuration file's content
+ * 
+ * @param fileContent The content of the configuration file as a string
+ * @return A fully populated ExternalTaintTable
+ * 
+ * This method parses a configuration file containing definitions of taint behaviors
+ * for external functions. It uses a parser combinator approach to interpret the
+ * configuration language, which supports various taint-related entries:
+ * - SOURCE entries: Define where tainted data originates
+ * - PIPE entries: Define how taint flows between arguments/return values
+ * - SINK entries: Define where tainted data can cause security issues
+ * - IGNORE entries: Functions to be ignored in taint analysis
+ * 
+ * The parser creates position specifiers (arguments, return values), taint classes,
+ * and taint lattice values to build a comprehensive model of taint behavior.
+ */
 ExternalTaintTable ExternalTaintTable::buildTable(const llvm::StringRef& fileContent)
 {
 	ExternalTaintTable table;
@@ -178,12 +195,30 @@ ExternalTaintTable ExternalTaintTable::buildTable(const llvm::StringRef& fileCon
 	return table;
 }
 
+/**
+ * Loads an external taint table from a file
+ * 
+ * @param fileName The path to the configuration file
+ * @return A fully populated ExternalTaintTable
+ * 
+ * This method reads the configuration file and passes its content to the buildTable 
+ * method to create the external taint table.
+ */
 ExternalTaintTable ExternalTaintTable::loadFromFile(const char* fileName)
 {
 	auto memBuf = util::io::readFileIntoBuffer(fileName);
 	return buildTable(memBuf->getBuffer());
 }
 
+/**
+ * Finds a taint summary for a given function name
+ * 
+ * @param name The name of the function to look up
+ * @return A pointer to the summary, or nullptr if not found
+ * 
+ * This method is used to retrieve taint summaries for external functions
+ * that have been specified in a configuration file.
+ */
 const TaintSummary* ExternalTaintTable::lookup(const std::string& name) const
 {
 	auto itr = summaryMap.find(name);

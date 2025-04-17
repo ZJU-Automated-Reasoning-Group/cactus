@@ -10,6 +10,20 @@ using namespace context;
 namespace tpa
 {
 
+/**
+ * Canonicalizes an LLVM Value for pointer analysis
+ * 
+ * @param value The LLVM value to canonicalize
+ * @return The canonicalized form of the value
+ * 
+ * This helper function performs various transformations to normalize values:
+ * 1. Strips pointer casts to get to the original value
+ * 2. Simplifies PHI nodes with identical operands
+ * 3. Replaces int-to-ptr instructions with undef values
+ * 
+ * Canonicalization helps ensure that equivalent pointer values
+ * are treated as equivalent in the analysis.
+ */
 const llvm::Value* canonicalizeValue(const llvm::Value* value)
 {
 	assert(value != nullptr);
@@ -38,8 +52,25 @@ const llvm::Value* canonicalizeValue(const llvm::Value* value)
 	return value;
 }
 
+/**
+ * Constructs a PointerManager instance
+ * 
+ * Initializes the universal and null pointer fields to nullptr.
+ * These special pointers need to be set explicitly using setUniversalPointer
+ * and setNullPointer before the manager can be fully used.
+ */
 PointerManager::PointerManager(): uPtr(nullptr), nPtr(nullptr) {}
 
+/**
+ * Builds or retrieves a Pointer for a context-value pair
+ * 
+ * @param ctx The context of the pointer
+ * @param val The LLVM value representing the pointer
+ * @return A pointer to the created or existing Pointer object
+ * 
+ * This internal method ensures a single instance exists for each
+ * unique context-value pair. It updates the valuePtrMap for reverse lookups.
+ */
 const Pointer* PointerManager::buildPointer(const context::Context* ctx, const llvm::Value* val)
 {
 	auto ptr = Pointer(ctx, val);
@@ -53,6 +84,16 @@ const Pointer* PointerManager::buildPointer(const context::Context* ctx, const l
 	return ret;
 }
 
+/**
+ * Sets the universal pointer value
+ * 
+ * @param v The LLVM undefined value to represent the universal pointer
+ * @return A pointer to the universal pointer object
+ * 
+ * The universal pointer is used to represent unknown pointer values
+ * or pointers that could point to any memory location. This is essential
+ * for soundly handling undefined behavior and complex pointer operations.
+ */
 const Pointer* PointerManager::setUniversalPointer(const llvm::UndefValue* v)
 {
 	assert(uPtr == nullptr);
@@ -61,12 +102,29 @@ const Pointer* PointerManager::setUniversalPointer(const llvm::UndefValue* v)
 	return uPtr;
 }
 
+/**
+ * Gets the universal pointer instance
+ * 
+ * @return A pointer to the universal pointer object
+ * 
+ * This pointer represents an unknown pointer value that could
+ * point to any memory location. Must be set before being accessed.
+ */
 const Pointer* PointerManager::getUniversalPointer() const
 {
 	assert(uPtr != nullptr);
 	return uPtr;
 }
 
+/**
+ * Sets the null pointer value
+ * 
+ * @param v The LLVM null pointer constant
+ * @return A pointer to the null pointer object
+ * 
+ * The null pointer represents the NULL value in C/C++.
+ * It must be set before the pointer manager can fully function.
+ */
 const Pointer* PointerManager::setNullPointer(const llvm::ConstantPointerNull* v)
 {
 	assert(nPtr == nullptr);
@@ -75,13 +133,32 @@ const Pointer* PointerManager::setNullPointer(const llvm::ConstantPointerNull* v
 	return nPtr;
 }
 
+/**
+ * Gets the null pointer instance
+ * 
+ * @return A pointer to the null pointer object
+ * 
+ * This pointer represents the NULL value in C/C++.
+ * Must be set before being accessed.
+ */
 const Pointer* PointerManager::getNullPointer() const
 {
 	assert(nPtr != nullptr);
 	return nPtr;
 }
 
-
+/**
+ * Looks up a pointer for a context-value pair
+ * 
+ * @param ctx The context of the pointer
+ * @param val The LLVM value representing the pointer
+ * @return A pointer to the Pointer object or nullptr if not found
+ * 
+ * This method handles special cases like:
+ * 1. Canonicalizing the value to ensure consistent lookup
+ * 2. Using the null or universal pointer for null or undefined values
+ * 3. Using the global context for global values
+ */
 const Pointer* PointerManager::getPointer(const Context* ctx, const llvm::Value* val) const
 {
 	assert(ctx != nullptr && val != nullptr);
@@ -102,6 +179,17 @@ const Pointer* PointerManager::getPointer(const Context* ctx, const llvm::Value*
 		return &*itr;
 }
 
+/**
+ * Gets or creates a pointer for a context-value pair
+ * 
+ * @param ctx The context of the pointer
+ * @param val The LLVM value representing the pointer
+ * @return A pointer to the created or existing Pointer object
+ * 
+ * Similar to getPointer, but ensures a Pointer is created if it
+ * doesn't already exist. Used during points-to analysis to create
+ * pointers on demand.
+ */
 const Pointer* PointerManager::getOrCreatePointer(const Context* ctx, const llvm::Value* val)
 {
 	assert(ctx != nullptr && val != nullptr);
@@ -118,6 +206,15 @@ const Pointer* PointerManager::getOrCreatePointer(const Context* ctx, const llvm
 	return buildPointer(ctx, val);
 }
 
+/**
+ * Finds all Pointer objects associated with a specific LLVM value
+ * 
+ * @param val The LLVM value to look up
+ * @return A vector of pointers to Pointer objects
+ * 
+ * This retrieves pointers across all contexts for a single value.
+ * Useful for call graph construction and cross-context analysis.
+ */
 PointerManager::PointerVector PointerManager::getPointersWithValue(const llvm::Value* val) const
 {
 	PointerVector vec;
@@ -138,6 +235,14 @@ PointerManager::PointerVector PointerManager::getPointersWithValue(const llvm::V
 	return vec;
 }
 
+/**
+ * Retrieves all Pointer objects managed by this instance
+ * 
+ * @return A vector of all pointers in the manager
+ * 
+ * Used for iteration over all pointers in the analysis,
+ * such as during result reporting or cleanup.
+ */
 std::vector<const Pointer*> PointerManager::getAllPointers() const
 {
     std::vector<const Pointer*> result;

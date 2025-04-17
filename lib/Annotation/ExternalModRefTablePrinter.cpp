@@ -8,6 +8,15 @@ using namespace llvm;
 namespace annotation
 {
 
+/**
+ * Prints a mod/ref class to the output stream
+ * 
+ * @param os The output stream to write to
+ * @param c The class (direct or reachable memory) to print
+ * 
+ * Formats the memory access class in a human-readable form, indicating whether
+ * the access is to direct memory or to memory reachable through pointers.
+ */
 static void printClass(raw_ostream& os, ModRefClass c)
 {
 	switch (c)
@@ -21,6 +30,15 @@ static void printClass(raw_ostream& os, ModRefClass c)
 	}
 }
 
+/**
+ * Prints a mod/ref effect to the output stream
+ * 
+ * @param os The output stream to write to
+ * @param effect The effect to print
+ * 
+ * Formats a single mod/ref effect, showing the position (return value, argument),
+ * and the type of memory access (direct or reachable).
+ */
 static void printEffect(raw_ostream& os, const ModRefEffect& effect)
 {
 	auto const& pos = effect.getPosition();
@@ -43,6 +61,14 @@ static void printEffect(raw_ostream& os, const ModRefEffect& effect)
 	os << "\n";
 }
 
+/**
+ * Prints all MOD effects in a summary to the output stream
+ * 
+ * @param os The output stream to write to
+ * @param summary The summary containing effects to print
+ * 
+ * Filters and formats all memory modification effects from the summary.
+ */
 static void printModEffects(raw_ostream& os, const ModRefEffectSummary& summary)
 {
 	os << "  [MOD]\n";
@@ -51,6 +77,14 @@ static void printModEffects(raw_ostream& os, const ModRefEffectSummary& summary)
 			printEffect(os, effect);
 }
 
+/**
+ * Prints all REF effects in a summary to the output stream
+ * 
+ * @param os The output stream to write to
+ * @param summary The summary containing effects to print
+ * 
+ * Filters and formats all memory reference (read) effects from the summary.
+ */
 static void printRefEffects(raw_ostream& os, const ModRefEffectSummary& summary)
 {
 	os << "  [REF]\n";
@@ -59,6 +93,16 @@ static void printRefEffects(raw_ostream& os, const ModRefEffectSummary& summary)
 			printEffect(os, effect);
 }
 
+/**
+ * Prints the entire external mod/ref table to the output stream
+ * 
+ * @param table The external mod/ref table to print
+ * 
+ * This method formats and outputs the full contents of the mod/ref table,
+ * including each function and its effects. Functions marked as ignored are
+ * specially highlighted. The output is color-coded for better readability,
+ * with modification effects in magenta and reference effects in yellow.
+ */
 void ExternalModRefTablePrinter::printTable(const ExternalModRefTable& table)
 {
 	os << "\n----- ExternalModRefTable -----\n";

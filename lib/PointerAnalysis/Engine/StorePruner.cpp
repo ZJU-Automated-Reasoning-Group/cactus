@@ -13,11 +13,34 @@ using namespace llvm;
 namespace tpa
 {
 
+/**
+ * @brief Determines if a memory object is accessible across function boundaries
+ *
+ * @param obj The memory object to check
+ * @return true if the object is globally accessible (not stack or heap)
+ * 
+ * This helper function identifies objects that can be accessed across function
+ * boundaries (globals, static variables, etc.) as opposed to function-local
+ * objects (stack allocations, heap allocations).
+ */
 static bool isAccessible(const MemoryObject* obj)
 {
 	return !(obj->isStackObject() || obj->isHeapObject());
 }
 
+/**
+ * @brief Gets the root set of objects for store pruning
+ *
+ * @param store The memory store to analyze
+ * @param pp The program point (call site) where pruning occurs
+ * @return ObjectSet Set of root objects that must be preserved
+ * 
+ * The root set includes:
+ * 1. Objects pointed to by function arguments
+ * 2. Globally accessible objects (globals, statics)
+ * 
+ * These objects form the starting points for reachability analysis.
+ */
 StorePruner::ObjectSet StorePruner::getRootSet(const Store& store, const ProgramPoint& pp)
 {
 	ObjectSet ret;
@@ -45,6 +68,16 @@ StorePruner::ObjectSet StorePruner::getRootSet(const Store& store, const Program
 	return ret;
 }
 
+/**
+ * @brief Finds all objects reachable from a set of root objects
+ *
+ * @param store The memory store containing points-to information
+ * @param reachableSet The set to populate with reachable objects (modified in place)
+ * 
+ * This method performs a graph traversal through the points-to relationships
+ * to find all objects that can be reached from the root set. It uses a worklist
+ * algorithm to efficiently process the object graph.
+ */
 void StorePruner::findAllReachableObjects(const Store& store, ObjectSet& reachableSet)
 {
 	std::vector<const MemoryObject*> currWorkList(reachableSet.begin(), reachableSet.end());
@@ -61,6 +94,7 @@ void StorePruner::findAllReachableObjects(const Store& store, ObjectSet& reachab
 
 			reachableSet.insert(obj);
 
+			// Add objects reachable through pointer fields in the current object
 			auto offsetObjs = memManager.getReachablePointerObjects(obj, false);
 			for (auto oObj: offsetObjs)
 				if (!exploredSet.count(oObj))
@@ -68,6 +102,7 @@ void StorePruner::findAllReachableObjects(const Store& store, ObjectSet& reachab
 				else
 					break;
 
+			// Add objects pointed to by the current object
 			auto pSet = store.lookup(obj);
 			for (auto pObj: pSet)
 				if (!exploredSet.count(pObj))
@@ -79,6 +114,16 @@ void StorePruner::findAllReachableObjects(const Store& store, ObjectSet& reachab
 	}
 }
 
+/**
+ * @brief Creates a new store containing only the reachable objects
+ *
+ * @param store The original store to filter
+ * @param reachableSet The set of reachable objects to preserve
+ * @return Store A new store with only reachable objects
+ * 
+ * This method filters the store to contain only mappings for objects
+ * in the reachable set, reducing memory usage by eliminating unreachable objects.
+ */
 Store StorePruner::filterStore(const Store& store, const ObjectSet& reachableSet)
 {
 	Store ret;
@@ -92,9 +137,26 @@ Store StorePruner::filterStore(const Store& store, const ObjectSet& reachableSet
 	return ret;
 }
 
+/**
+ * @brief Prunes a store to contain only objects relevant to a function call
+ *
+ * @param store The store to prune
+ * @param pp The program point (call site) where pruning occurs
+ * @return Store A new, pruned store with only relevant objects
+ * 
+ * In context-sensitive analysis, each function call context only needs to maintain
+ * memory state relevant to its execution, not the entire program's memory state.
+ * This reduces memory usage and computational overhead.
+ * 
+ * The pruning process:
+ * 1. Identify root objects (function arguments and globals)
+ * 2. Find all objects reachable from these roots
+ * 3. Create a new store containing only the reachable objects
+ */
 Store StorePruner::pruneStore(const Store& store, const ProgramPoint& pp)
 {
-	// 上下文敏感分析中的每个函数调用上下文只需要维护与其相关的内存状态，而不是整个程序的内存状态，从而减少了内存使用和计算开销
+	// In context-sensitive analysis, each function call context only needs to maintain
+	// memory state relevant to its execution, not the entire program's memory state
 	assert(pp.getCFGNode()->isCallNode() && "Prunning can only happen on call node!");
 	
 	auto reachableSet = getRootSet(store, pp);

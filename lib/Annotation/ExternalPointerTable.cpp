@@ -10,6 +10,15 @@ using namespace pcomb;
 namespace annotation
 {
 
+/**
+ * Finds a pointer effect summary for a given function name
+ * 
+ * @param name The name of the function to look up
+ * @return A pointer to the summary, or nullptr if not found
+ * 
+ * This method is used to retrieve pointer effect summaries for external functions
+ * that have been specified in a configuration file.
+ */
 const PointerEffectSummary* ExternalPointerTable::lookup(const StringRef& name) const
 {
 	auto itr = table.find(name);
@@ -19,6 +28,23 @@ const PointerEffectSummary* ExternalPointerTable::lookup(const StringRef& name) 
 		return &itr->second;
 }
 
+/**
+ * Builds a pointer effect table from a configuration file's content
+ * 
+ * @param fileContent The content of the configuration file as a string
+ * @return A fully populated ExternalPointerTable
+ * 
+ * This method parses a configuration file containing definitions of pointer behaviors
+ * for external functions. It uses a parser combinator approach to interpret the
+ * configuration language, which supports various pointer-related effects like:
+ * - Memory allocation
+ * - Pointer copying between parameters/return values
+ * - Memory escape tracking
+ * - Ignoring specific functions
+ * 
+ * The parser defines rules for positions (args/return values), copy sources/destinations,
+ * allocation effects, and builds a table mapping function names to their effects.
+ */
 ExternalPointerTable ExternalPointerTable::buildTable(const StringRef& fileContent)
 {
 	ExternalPointerTable extTable;
@@ -211,6 +237,15 @@ ExternalPointerTable ExternalPointerTable::buildTable(const StringRef& fileConte
 	return extTable;
 }
 
+/**
+ * Loads an external pointer table from a file
+ * 
+ * @param fileName The path to the configuration file
+ * @return A fully populated ExternalPointerTable
+ * 
+ * This method reads the configuration file and passes its content to the buildTable 
+ * method to create the external pointer table.
+ */
 ExternalPointerTable ExternalPointerTable::loadFromFile(const char* fileName)
 {
 	auto memBuf = util::io::readFileIntoBuffer(fileName);

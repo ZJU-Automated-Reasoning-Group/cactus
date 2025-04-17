@@ -11,6 +11,16 @@ using namespace pcomb;
 namespace annotation
 {
 
+/**
+ * Finds a mod/ref effect summary for a given function name
+ * 
+ * @param name The name of the function to look up
+ * @return A pointer to the summary, or nullptr if not found
+ * 
+ * This method is used to retrieve mod/ref effect summaries for external functions
+ * that have been specified in a configuration file. Mod/ref analysis tracks which
+ * functions modify or reference memory.
+ */
 const ModRefEffectSummary* ExternalModRefTable::lookup(const StringRef& name) const
 {
 	auto itr = table.find(name);
@@ -20,6 +30,23 @@ const ModRefEffectSummary* ExternalModRefTable::lookup(const StringRef& name) co
 		return &itr->second;
 }
 
+/**
+ * Builds a mod/ref effect table from a configuration file's content
+ * 
+ * @param fileContent The content of the configuration file as a string
+ * @return A fully populated ExternalModRefTable
+ * 
+ * This method parses a configuration file containing definitions of memory
+ * modification and reference behaviors for external functions. It uses a parser
+ * combinator approach to interpret the configuration language, which supports:
+ * - MOD entries: Indicate memory locations modified by functions
+ * - REF entries: Indicate memory locations read by functions
+ * - IGNORE entries: Functions to be ignored in mod/ref analysis
+ * 
+ * The parser creates position specifiers (arguments, return values) and memory
+ * access classes (direct or reachable memory) to build a comprehensive model
+ * of memory behavior.
+ */
 ExternalModRefTable ExternalModRefTable::buildTable(const StringRef& fileContent)
 {
 	ExternalModRefTable table;
@@ -146,6 +173,15 @@ ExternalModRefTable ExternalModRefTable::buildTable(const StringRef& fileContent
 	return table;
 }
 
+/**
+ * Loads an external mod/ref table from a file
+ * 
+ * @param fileName The path to the configuration file
+ * @return A fully populated ExternalModRefTable
+ * 
+ * This method reads the configuration file and passes its content to the buildTable 
+ * method to create the external mod/ref table.
+ */
 ExternalModRefTable ExternalModRefTable::loadFromFile(const char* fileName)
 {
 	auto memBuf = util::io::readFileIntoBuffer(fileName);

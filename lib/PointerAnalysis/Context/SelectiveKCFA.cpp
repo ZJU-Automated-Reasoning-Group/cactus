@@ -20,33 +20,82 @@ namespace context
 // Static members are defined in StaticFields.cpp
 // No need to define them here again to avoid duplicate symbols
 
+/**
+ * Sets the context depth limit (k) for a specific call site
+ *
+ * @param callSite The call instruction
+ * @param k The maximum context depth to use
+ *
+ * This allows tailoring context sensitivity on a per-call-site basis,
+ * applying more precision where needed and less where it's not beneficial.
+ */
 void SelectiveKCFA::setCallSiteLimit(const Instruction* callSite, unsigned k)
 {
     callSiteKLimits[callSite] = k;
 }
 
+/**
+ * Sets the context depth limit (k) for a specific allocation site
+ *
+ * @param allocSite The allocation instruction
+ * @param k The maximum context depth to use
+ *
+ * This allows applying different levels of precision to different
+ * allocation sites based on their importance or complexity.
+ */
 void SelectiveKCFA::setAllocSiteLimit(const Instruction* allocSite, unsigned k)
 {
     allocSiteKLimits[allocSite] = k;
 }
 
+/**
+ * Gets the context depth limit for a specific call site
+ *
+ * @param callSite The call instruction
+ * @return The k limit for this call site (or the default limit if not set)
+ */
 unsigned SelectiveKCFA::getCallSiteLimit(const Instruction* callSite)
 {
     auto it = callSiteKLimits.find(callSite);
     return (it != callSiteKLimits.end()) ? it->second : defaultLimit;
 }
 
+/**
+ * Gets the context depth limit for a specific allocation site
+ *
+ * @param allocSite The allocation instruction
+ * @return The k limit for this allocation site (or the default limit if not set)
+ */
 unsigned SelectiveKCFA::getAllocSiteLimit(const Instruction* allocSite)
 {
     auto it = allocSiteKLimits.find(allocSite);
     return (it != allocSiteKLimits.end()) ? it->second : defaultLimit;
 }
 
+/**
+ * Pushes a new context element onto a context based on a program point
+ *
+ * @param pp The program point containing context and instruction information
+ * @return The resulting context (new context or unchanged if limit reached)
+ *
+ * This method implements the context sensitivity policy for the analysis.
+ */
 const Context* SelectiveKCFA::pushContext(const ProgramPoint& pp)
 {
     return pushContext(pp.getContext(), pp.getInstruction());
 }
 
+/**
+ * Pushes a new context element onto a context
+ *
+ * @param ctx The current context
+ * @param inst The instruction to add to the context
+ * @return The resulting context (new context or unchanged if limit reached)
+ *
+ * This is the core method implementing selective k-CFA. It decides whether
+ * to extend the context with a new element or to maintain the current context,
+ * based on the configured k limits.
+ */
 const Context* SelectiveKCFA::pushContext(const Context* ctx, const Instruction* inst)
 {
     // Determine the k limit to use for this instruction
@@ -60,6 +109,15 @@ const Context* SelectiveKCFA::pushContext(const Context* ctx, const Instruction*
         return Context::pushContext(ctx, inst);  // Add new context element
 }
 
+/**
+ * Sets the k limit for all call sites within a function
+ *
+ * @param func The function to configure
+ * @param k The k limit to apply to all call sites in the function
+ *
+ * This is a convenience method to apply the same k limit to all call sites
+ * within a specific function.
+ */
 void SelectiveKCFA::setKLimitForFunctionCallSites(const Function* func, unsigned k)
 {
     for (const_inst_iterator I = inst_begin(func), E = inst_end(func); I != E; ++I) {
@@ -70,6 +128,15 @@ void SelectiveKCFA::setKLimitForFunctionCallSites(const Function* func, unsigned
     }
 }
 
+/**
+ * Sets the k limit for all allocation sites within a function
+ *
+ * @param func The function to configure
+ * @param k The k limit to apply to all allocation sites in the function
+ *
+ * This method identifies common allocation functions (malloc, new, etc.)
+ * and applies a consistent k limit to them within a specific function.
+ */
 void SelectiveKCFA::setKLimitForFunctionAllocSites(const Function* func, unsigned k)
 {
     for (const_inst_iterator I = inst_begin(func), E = inst_end(func); I != E; ++I) {
@@ -88,6 +155,16 @@ void SelectiveKCFA::setKLimitForFunctionAllocSites(const Function* func, unsigne
     }
 }
 
+/**
+ * Sets the k limit for call sites calling functions matching a name pattern
+ *
+ * @param module The LLVM module to analyze
+ * @param pattern A regex pattern to match function names
+ * @param k The k limit to apply to matching call sites
+ *
+ * This method enables targeted context sensitivity based on function name patterns,
+ * allowing precision to be focused on specific libraries or functionality.
+ */
 void SelectiveKCFA::setKLimitForCallSitesByName(const Module* module, const std::string& pattern, unsigned k)
 {
     std::regex nameRegex(pattern);
@@ -120,6 +197,15 @@ void SelectiveKCFA::setKLimitForCallSitesByName(const Module* module, const std:
     }
 }
 
+/**
+ * Sets the k limit for call sites in a list of functions
+ *
+ * @param funcs A list of functions
+ * @param k The k limit to apply to call sites in these functions
+ *
+ * This is a convenience method to apply the same k limit to call sites
+ * across multiple functions.
+ */
 void SelectiveKCFA::setKLimitForFunctionsList(const std::vector<const Function*>& funcs, unsigned k)
 {
     for (const Function* func : funcs) {
@@ -127,6 +213,15 @@ void SelectiveKCFA::setKLimitForFunctionsList(const std::vector<const Function*>
     }
 }
 
+/**
+ * Prints statistics about the configured context sensitivity
+ *
+ * @param os The output stream to print to
+ *
+ * This method provides insight into how the selective context sensitivity
+ * is configured, showing the distribution of k values across call sites
+ * and allocation sites.
+ */
 void SelectiveKCFA::printStats(raw_ostream& os)
 {
     os << "SelectiveKCFA Configuration:\n";
