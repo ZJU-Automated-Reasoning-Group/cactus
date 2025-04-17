@@ -124,7 +124,7 @@ void TypeSetBuilder::incorporateType(Type* llvmType)
 	else if (auto arrType = dyn_cast<ArrayType>(llvmType))
 		incorporateArrayType(arrType);
 	else if (llvmType->isVectorTy())
-		llvm_unreachable("Vector type not supported");
+		incorporateType(llvmType->getVectorElementType());
 }
 
 void TypeSetBuilder::collectType()

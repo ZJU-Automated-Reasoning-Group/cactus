@@ -3,6 +3,9 @@ compile_commands.json
 .cache
 .callgrind
 .vscode
+*.wpa
+*.dvf
+*.svfg
 paper
 .settings
 .idea

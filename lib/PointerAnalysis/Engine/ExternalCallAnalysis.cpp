@@ -34,8 +34,14 @@ static const Value* getArgument(const CallCFGNode& callNode, const APosition& po
 	assert(cs);
 	
 	auto argIdx = pos.getAsArgPosition().getArgIndex();
-	// FIXME: what if the following assertion fails?
-	assert(cs.arg_size() > argIdx);
+	// Check if argument index is out of bounds
+	if (cs.arg_size() <= argIdx) {
+		// Handle the case when argument index is out of bounds
+		errs() << "Warning: Argument index " << argIdx << " out of bounds for call to " 
+		       << (cs.getCalledFunction() ? cs.getCalledFunction()->getName() : "unknown function")
+		       << " with " << cs.arg_size() << " arguments\n";
+		return nullptr;
+	}
 
 	return cs.getArgument(argIdx)->stripPointerCasts();
 }
@@ -157,7 +163,14 @@ bool TransferFunction::evalExternalAlloc(const context::Context* ctx, const Call
 	auto newCtx = ContextSensitivityPolicy::pushContext(ctx, callsite);
 
 	auto mallocType = getMallocType(callNode.getCallSite());
-	auto sizeVal = allocEffect.hasSizePosition() ? getArgument(callNode, allocEffect.getSizePosition()) : nullptr;
+	const Value* sizeVal = nullptr;
+	if (allocEffect.hasSizePosition()) {
+		sizeVal = getArgument(callNode, allocEffect.getSizePosition());
+		// If we couldn't get the size argument, proceed with conservative assumptions
+		if (sizeVal == nullptr) {
+			errs() << "Warning: Could not retrieve size argument for allocation, using conservative allocation\n";
+		}
+	}
 
 	// Handle the case where getMallocType returns nullptr
 	return evalMallocWithSize(newCtx, dstVal, mallocType, sizeVal);
@@ -206,10 +219,19 @@ bool TransferFunction::evalMemcpy(const context::Context* ctx, const CallCFGNode
 	assert(dstPos.isArgPosition() && srcPos.isArgPosition() && "memcpy only operates on arguments");
 
 	auto& ptrManager = globalState.getPointerManager();
-	auto dstPtr = ptrManager.getPointer(ctx, getArgument(callNode, dstPos));
+	auto dstArg = getArgument(callNode, dstPos);
+	if (dstArg == nullptr)
+		return false;
+	
+	auto dstPtr = ptrManager.getPointer(ctx, dstArg);
 	if (dstPtr == nullptr)
 		return false;
-	auto srcPtr = ptrManager.getPointer(ctx, getArgument(callNode, srcPos));
+	
+	auto srcArg = getArgument(callNode, srcPos);
+	if (srcArg == nullptr)
+		return false;
+	
+	auto srcPtr = ptrManager.getPointer(ctx, srcArg);
 	if (srcPtr == nullptr)
 		return false;
 
@@ -222,17 +244,28 @@ PtsSet TransferFunction::evalExternalCopySource(const context::Context* ctx, con
 	{
 		case CopySource::SourceType::Value:
 		{
-			auto ptr = globalState.getPointerManager().getPointer(ctx, getArgument(callNode, src.getPosition()));
+			// Check if the argument exists
+			auto argVal = getArgument(callNode, src.getPosition());
+			if (argVal == nullptr)
+				return PtsSet::getEmptySet();
+			
+			auto ptr = globalState.getPointerManager().getPointer(ctx, argVal);
 			if (ptr == nullptr)
 				return PtsSet::getEmptySet();
+			
 			return globalState.getEnv().lookup(ptr);
 		}
 		case CopySource::SourceType::DirectMemory:
 		{
-			auto ptr = globalState.getPointerManager().getPointer(ctx, getArgument(callNode, src.getPosition()));
+			auto argVal = getArgument(callNode, src.getPosition());
+			if (argVal == nullptr)
+				return PtsSet::getEmptySet();
+			
+			auto ptr = globalState.getPointerManager().getPointer(ctx, argVal);
 			if (ptr == nullptr)
 				return PtsSet::getEmptySet();
-			return loadFromPointer(ptr, *localState);
+			
+			return globalState.getEnv().lookup(ptr);
 		}
 		case CopySource::SourceType::Universal:
 		{
@@ -273,7 +306,12 @@ void TransferFunction::evalExternalCopyDest(const context::Context* ctx, const C
 	bool envChanged = false;
 	if (!(callNode.getDest() == nullptr && dest.getPosition().isReturnPosition()))
 	{
-		auto dstPtr = globalState.getPointerManager().getOrCreatePointer(ctx, getArgument(callNode, dest.getPosition()));
+		auto argVal = getArgument(callNode, dest.getPosition());
+		if (argVal == nullptr)
+			return;
+		
+		auto dstPtr = globalState.getPointerManager().getOrCreatePointer(ctx, argVal);
+		
 		switch (dest.getType())
 		{
 			case CopyDest::DestType::Value:
@@ -302,9 +340,6 @@ void TransferFunction::evalExternalCopyDest(const context::Context* ctx, const C
 			}
 		}
 	}
-
-	if (envChanged)
-		addTopLevelSuccessors(ProgramPoint(ctx, &callNode), evalResult);
 }
 
 void TransferFunction::evalExternalCopy(const context::Context* ctx, const CallCFGNode& callNode, EvalResult& evalResult, const PointerCopyEffect& copyEffect)

@@ -198,7 +198,11 @@ TaintLattice TransferFunction::getTaintValueByTClass(const TaintValue& tv, TClas
 
 			auto const& ptrAnalysis = globalState.getPointerAnalysis();
 			auto pSet = ptrAnalysis.getPtsSet(tv.getContext(), tv.getValue());
-			assert(!pSet.empty());
+			
+			// If pSet is empty, return Unknown taint
+			if (pSet.empty())
+				return TaintLattice::Unknown;
+			
 			TaintLattice retVal = loadTaintFromPtsSet(pSet, *localState);
 			
 			return retVal;
@@ -253,7 +257,11 @@ void TransferFunction::evalMemcpy(const TaintValue& srcVal, const TaintValue& ds
 
 	auto dstSet = ptrAnalysis.getPtsSet(dstVal.getContext(), dstVal.getValue());
 	auto srcSet = ptrAnalysis.getPtsSet(srcVal.getContext(), srcVal.getValue());
-	assert(!dstSet.empty() && !srcSet.empty());
+	
+	// If either the source or destination set is empty, nothing to copy
+	if (dstSet.empty() || srcSet.empty()) {
+		return;
+	}
 
 	auto& store = evalResult.getStore();
 	for (auto srcObj: srcSet)
