@@ -9,6 +9,7 @@ private:
 	llvm::StringRef ptrConfigFileName;
 
 	bool noPrepassFlag;
+	bool dumpPtsFlag;
 	unsigned k;
 public:
 	CommandLineOptions(int argc, char** argv);
@@ -17,5 +18,6 @@ public:
 	const llvm::StringRef& getPtrConfigFileName() const { return ptrConfigFileName; }
 
 	bool isPrepassDisabled() const { return noPrepassFlag; }
+	bool shouldDumpPts() const { return dumpPtsFlag; }
 	unsigned getContextSensitivity() const { return k; }
 };

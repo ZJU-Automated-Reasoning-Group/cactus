@@ -140,7 +140,13 @@ const tpa::Pointer* translatePointer(const DynamicPointer& dynPtr, const IDAssig
 	assert(dynPtr.getID() != 0);
 	auto ptrValue = idMap.getValue(dynPtr.getID());
 	assert(ptrValue != nullptr);
-	assert(ptrValue->getType()->isPointerTy());
+	
+	// Only proceed with pointer type values
+	if (!ptrValue->getType()->isPointerTy()) {
+		errs() << "Value is not a pointer type\n";
+		errs() << "\tContext = " << *ctx << ", value = " << *ptrValue << "\n";
+		return nullptr;
+	}
 
 	auto ptr = ptrManager.getPointer(ctx, ptrValue);
 	if (ptr == nullptr)

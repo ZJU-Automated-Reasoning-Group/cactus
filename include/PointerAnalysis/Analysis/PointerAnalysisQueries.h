@@ -6,6 +6,9 @@
 #include "PointerAnalysis/MemoryModel/Pointer.h"
 #include "PointerAnalysis/MemoryModel/MemoryObject.h"
 #include "PointerAnalysis/Support/PtsSet.h"
+#include "Context/Context.h"
+#include <llvm/IR/CallSite.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include <vector>
 #include <set>
@@ -99,6 +102,9 @@ public:
     // Get all aliasing pairs of pointers from a set of pointers
     std::vector<std::pair<const Pointer*, const Pointer*>> getAllAliasingPairs(
         const std::vector<const Pointer*>& pointers) const;
+
+    // For a call site, what functions might be called?
+    virtual std::vector<const llvm::Function*> getCallees(const llvm::ImmutableCallSite& cs, const context::Context* ctx = nullptr) const = 0;
 };
 
 /**
@@ -112,7 +118,7 @@ private:
     const PointerAnalysisType& analysis;
 
     // Implementation of abstract method
-    PtsSet getPtsSetForPointer(const Pointer* ptr) const override
+    PtsSet getPtsSetForPointer(const Pointer* ptr) const
     {
         return analysis.getPtsSet(ptr);
     }
@@ -121,6 +127,25 @@ public:
     PointerAnalysisQueriesImpl(const PointerAnalysisType& pa)
         : PointerAnalysisQueries(pa.getPointerManager(), pa.getMemoryManager()),
           analysis(pa) {}
+
+    PtsSet getPtsSet(const context::Context* ctx, const llvm::Value* val) const
+    {
+        return analysis.getPtsSet(ctx, val);
+    }
+
+    std::vector<const llvm::Function*> getCallees(const llvm::ImmutableCallSite& cs, const context::Context* ctx = nullptr) const
+    {
+        // Debug output to verify context sensitivity being used
+        static size_t callCount = 0;
+        if (callCount < 5) {
+            llvm::errs() << "DEBUG: getCallees with context depth=" 
+                        << (ctx ? ctx->size() : 0) << " at "
+                        << *cs.getInstruction() << "\n";
+            callCount++;
+        }
+        
+        return analysis.getCallees(cs, ctx);
+    }
 };
 
 } // namespace tpa 
