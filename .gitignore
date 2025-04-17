@@ -11,6 +11,7 @@ paper
 .DS_Store
 cmake-build-*
 build
+rebuild.sh
 *.a
 *.o
 benchmarks/*.ll

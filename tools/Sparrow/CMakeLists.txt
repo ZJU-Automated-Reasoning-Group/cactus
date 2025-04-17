@@ -2,12 +2,6 @@ if(DEFINED IN_SOURCE_BUILD)
     set(LLVM_LINK_COMPONENTS)
     add_llvm_tool(sparrow sparrow.cpp)
 else()
-    llvm_map_components_to_libnames(llvm_libs 
-        #core 
-        #ipo 
-        #irreader 
-        #instcombine
-    )
     add_executable(sparrow sparrow.cpp)
-    target_link_libraries(sparrow SparrowLib ${llvm_libs})
+    target_link_libraries(sparrow SparrowLib)
 endif()

@@ -1,10 +1,3 @@
-include_directories(
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/include/SVF
-)
-
-# Need to specify paths relative to the parent directory
 set(UTIL_SOURCES
     Util/AnalysisUtil.cpp
     Util/CPPUtil.cpp

@@ -15,9 +15,6 @@ file (GLOB SOURCES
 
 add_library(SparrowLib STATIC ${SOURCES})
 
-#llvm_map_components_to_libnames(llvm_libs 
-#bitwriter core ipo irreader instcombine instrumentation target linker analysis scalaropts support )
-
 target_link_libraries(SparrowLib PRIVATE 
     #${llvm_libs} 
     LLVMSvf 

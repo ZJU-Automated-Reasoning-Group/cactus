@@ -103,18 +103,28 @@ include_directories(
     ${CMAKE_CURRENT_SOURCE_DIR}/CUDD
 )
 
-add_library(Cudd MODULE ${SOURCES})
+#add_library(Cudd MODULE ${SOURCES})
 add_library(LLVMCudd STATIC ${SOURCES})
 
-set_target_properties(Cudd PROPERTIES COMPILE_FLAGS "-Wno-format -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
+#set_target_properties(Cudd PROPERTIES COMPILE_FLAGS "-Wno-format -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
 set_target_properties(LLVMCudd PROPERTIES COMPILE_FLAGS "-Wno-format -Wno-int-to-pointer-cast -Wno-pointer-to-int-cast")
 
 # Link with LLVM libraries
-llvm_map_components_to_libnames(llvm_libs BitWriter Core IPO IrReader InstCombine Instrumentation Target Linker Analysis ScalarOpts Support)
-target_link_libraries(Cudd PRIVATE ${llvm_libs})
+llvm_map_components_to_libnames(llvm_libs 
+    BitWriter 
+    Core 
+    IPO 
+    IrReader 
+    #InstCombine 
+    Instrumentation 
+    Target 
+    Linker 
+    Analysis 
+    #ScalarOpts 
+    Support)
+# target_link_libraries(Cudd PRIVATE ${llvm_libs})
 target_link_libraries(LLVMCudd PRIVATE ${llvm_libs})
 
 if(DEFINED IN_SOURCE_BUILD)
-    add_dependencies(Cudd intrinsics_gen)
     add_dependencies(LLVMCudd intrinsics_gen)
 endif()
