@@ -1,4 +1,3 @@
-
 set (TaintAnalysisSourceCodes
 	Analysis/TrackingTaintAnalysis.cpp
 	Analysis/TaintAnalysis.cpp

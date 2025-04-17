@@ -12,4 +12,10 @@ set (UtilCodes
 )
 
 add_library (Util STATIC ${UtilCodes})
-target_link_libraries (Util LLVMIRReader LLVMAsmParser LLVMBitWriter LLVMSupport LLVMCore)
+target_link_libraries (Util 
+    LLVMIRReader 
+    #LLVMAsmParser 
+    LLVMBitWriter 
+    LLVMSupport 
+    LLVMCore
+)

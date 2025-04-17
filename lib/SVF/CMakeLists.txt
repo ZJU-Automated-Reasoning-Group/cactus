@@ -25,12 +25,22 @@ target_link_libraries(Svf PRIVATE LLVMCudd)
 target_link_libraries(LLVMSvf PRIVATE LLVMCudd)
 
 # Link with LLVM libraries
-llvm_map_components_to_libnames(llvm_libs
-    BitWriter Core IPO IrReader InstCombine Instrumentation
-    Target Linker Analysis ScalarOpts Support
-)
-target_link_libraries(Svf PRIVATE ${llvm_libs})
-target_link_libraries(LLVMSvf PRIVATE ${llvm_libs})
+#llvm_map_components_to_libnames(llvm_libs
+    #BitWriter 
+    #Core 
+    #IPO 
+    #IrReader 
+    #InstCombine 
+    #Instrumentation
+    #Target 
+    #Linker 
+    #Analysis 
+    #ScalarOpts 
+    #Support
+#)   
+
+#target_link_libraries(Svf PRIVATE ${llvm_libs})
+#target_link_libraries(LLVMSvf PRIVATE ${llvm_libs})
 
 if(DEFINED IN_SOURCE_BUILD)
     add_dependencies(Svf intrinsics_gen)

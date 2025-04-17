@@ -54,4 +54,8 @@ set (PointerAnalysisSourceCodes
 )
 add_library (PointerAnalysis STATIC ${PointerAnalysisSourceCodes})
 
-target_link_libraries (PointerAnalysis Annotation LLVMSupport LLVMCore)
+target_link_libraries (PointerAnalysis 
+    Annotation 
+    #LLVMSupport 
+    #LLVMCore
+)

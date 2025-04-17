@@ -13,4 +13,9 @@ set (TransformSourceCodes
 )
 
 add_library (Transforms STATIC ${TransformSourceCodes})
-target_link_libraries (Transforms LLVMTransformUtils LLVMipo LLVMSupport LLVMCore)
+target_link_libraries (Transforms 
+    LLVMTransformUtils 
+    LLVMipo 
+    LLVMSupport 
+    LLVMCore
+)

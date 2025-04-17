@@ -27,9 +27,9 @@ target_include_directories(Canary PRIVATE
 
 target_link_libraries(Canary PRIVATE 
     Util 
-    LLVMCore 
-    LLVMAnalysis 
-    LLVMSupport
+    #LLVMCore 
+    #LLVMAnalysis 
+    #LLVMSupport
 )
 
 if(DEFINED IN_SOURCE_BUILD)

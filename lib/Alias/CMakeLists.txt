@@ -28,10 +28,10 @@ target_include_directories(Alias PRIVATE
 target_link_libraries(Alias PRIVATE 
     Util 
     Canary
-    LLVMCore 
-    LLVMAnalysis 
-    LLVMSupport
-    LLVMTransformUtils
+    #LLVMCore 
+    #LLVMAnalysis 
+    #LLVMSupport
+    #LLVMTransformUtils
 )
 
 if(DEFINED IN_SOURCE_BUILD)
