@@ -92,16 +92,15 @@ Cactus provides several core analysis capabilities:
 - **Description**: A comprehensive collection of alias analysis implementations.
 - **Components**:
   - `lib/Alias/`: Contains various alias analysis implementations:
-    - **DyckAA**: Context-sensitive alias analysis
     - **SRAA (Strict Relation Alias Analysis)**: Identifies non-aliasing pointers by analyzing their strict mathematical relationships
       - Includes range analysis for determining variable bounds
       - Value-based Static Single Assignment form implementation
     - **OBAA (Offset-Based Alias Analysis)**: Leverages offset information to determine alias relationships
-    - **Canary**: A lightweight detection-oriented alias analysis
+    - **Canary**: A lightweight, Dyck-reachability based alias analysis
 
 
 ### 2. Call Graph Construction (Sparrow)
-- **Description**: Constructs a precise call graph by resolving indirect calls through function pointer analysis.
+- **Description**: Constructs a precise call graph by resolving indirect calls through type and pointer analysis.
 - **Components**:
   - `lib/FPAnalysis`: Core function pointer and call graph construction
   - `include/FPAnalysis`: Analysis interface definitions
@@ -126,7 +125,7 @@ The `indirect-call-targets.txt` report includes:
     - Andersen's inclusion-based analysis
     - Wave propagation optimization for Andersen's
     - Steensgaard's unification-based analysis
-    - Flow-sensitive analysis
+    - Flow-sensitive, Andersen-style analysis
   - `lib/SVF/SABER`: Static bug checkers for memory issues like:
     - Memory leaks
     - Use-after-free
