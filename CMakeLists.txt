@@ -1,7 +1,6 @@
 cmake_minimum_required(VERSION 3.4.3)
 project(Cactus)
 set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_FLAGS "-fPIC -std=gnu++14 -O0 -fno-rtti -Wno-deprecated")
 
 
 #find LLVM package
@@ -50,15 +49,17 @@ message(STATUS "Using python interpreter in: ${PYTHON_EXECUTABLE}")
 include(CheckCXXCompilerFlag)
 CHECK_CXX_COMPILER_FLAG("-std=c++14" COMPILER_SUPPORTS_CXX14)
 if(COMPILER_SUPPORTS_CXX14)
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14 -fno-rtti -Wall -fPIC")
+	set(CMAKE_CXX_FLAGS "-fPIC -O3 -fno-rtti -Wall -Wno-deprecated")
 else()
 	message(STATUS "The compiler ${CMAKE_CXX_COMPILER} has no C++14 support. Please use a different C++ compiler.")
 endif()
 
-configure_file(config/ptr.config ptr.config COPYONLY)
-configure_file(config/modref.config modref.config COPYONLY)
-configure_file(config/taint.config taint.config COPYONLY)
-
+# Copy configuration files to build directory
+file(COPY 
+     ${CMAKE_CURRENT_SOURCE_DIR}/config/ptr.config
+     ${CMAKE_CURRENT_SOURCE_DIR}/config/modref.config
+     ${CMAKE_CURRENT_SOURCE_DIR}/config/taint.config
+     DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 # Set up include paths more elegantly
 set(CACTUS_INCLUDE_DIRS
