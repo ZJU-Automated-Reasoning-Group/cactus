@@ -5,7 +5,7 @@
 using namespace util;
 using namespace llvm;
 
-CommandLineOptions::CommandLineOptions(int argc, char** argv): ptrConfigFileName("ptr.config"), noPrepassFlag(false), dumpPtsFlag(false), k(1)
+CommandLineOptions::CommandLineOptions(int argc, char** argv): ptrConfigFileName("ptr.config"), noPrepassFlag(false), dumpPtsFlag(false), debugContextFlag(false), k(1)
 {
 	TypedCommandLineParser cmdParser("Points-to set dumper");
 	cmdParser.addStringPositionalFlag("inputFile", "Input LLVM bitcode file name", inputFileName);
@@ -13,9 +13,13 @@ CommandLineOptions::CommandLineOptions(int argc, char** argv): ptrConfigFileName
 	cmdParser.addUIntOptionalFlag("k", "The size limit of the stack for k-CFA (default = 1)", k);
 	cmdParser.addBooleanOptionalFlag("no-prepass", "Do no run IR cannonicalization before the analysis", noPrepassFlag);
 	cmdParser.addBooleanOptionalFlag("dump-pts", "Dump points-to sets after analysis", dumpPtsFlag);
+	cmdParser.addBooleanOptionalFlag("debug-context", "Enable additional debug output for context sensitivity", debugContextFlag);
 
 	cmdParser.parseCommandLineOptions(argc, argv);
 	
 	// Output the provided k value to confirm it was read correctly
 	errs() << "CommandLineOptions: Context sensitivity k=" << k << "\n";
+	if (debugContextFlag) {
+		errs() << "Context debugging enabled - will print detailed information about context sensitivity\n";
+	}
 }

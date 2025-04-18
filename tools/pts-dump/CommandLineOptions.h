@@ -10,6 +10,7 @@ private:
 
 	bool noPrepassFlag;
 	bool dumpPtsFlag;
+	bool debugContextFlag;
 	unsigned k;
 public:
 	CommandLineOptions(int argc, char** argv);
@@ -19,5 +20,6 @@ public:
 
 	bool isPrepassDisabled() const { return noPrepassFlag; }
 	bool shouldDumpPts() const { return dumpPtsFlag; }
+	bool isContextDebugEnabled() const { return debugContextFlag; }
 	unsigned getContextSensitivity() const { return k; }
 };

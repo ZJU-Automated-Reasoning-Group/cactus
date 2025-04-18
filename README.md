@@ -60,7 +60,16 @@ Performs taint analysis to identify potential security vulnerabilities.
 
 ### Other Tools
 - `global-pts`: Global points-to analysis
-- `pts-dump`: Points-to information dump
+- `pts-dump`: Points-to information dump utility that performs context-sensitive points-to analysis on LLVM bitcode and displays analysis results
+  ```bash
+  ./pts-dump input.bc [options]
+  ```
+  Options:
+  - `-ptr-config <file>`: Specify an annotation file for external library points-to analysis (default: ptr.config)
+  - `-k <number>`: Set the context sensitivity level (k-limiting) for the analysis (default: 1)
+  - `-no-prepass`: Skip IR canonicalization before analysis
+  - `-dump-pts`: Dump detailed points-to sets after analysis (otherwise only summary statistics are shown)
+  - `-debug-context`: Enable additional debug output for context sensitivity issues
 - `pts-inst`: Points-to instrumentation
 - `pts-verify`: Points-to verification
 - `vkcfa-taint`: Value and context flow-aware taint analysis

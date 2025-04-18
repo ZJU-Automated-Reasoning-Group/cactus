@@ -16,6 +16,7 @@ TODO
 
 #include "Util/IO/PointerAnalysis/Printer.h"
 #include <llvm/Support/raw_ostream.h>
+#include <llvm/IR/Instructions.h>
 
 using namespace llvm;
 
@@ -152,6 +153,7 @@ std::pair<bool, bool> TransferFunction::evalCallArguments(const context::Context
 	if (argSets.size() < numParams)
 		return std::make_pair(false, false);
 
+	// IMPORTANT: Use the function context's context (the new context) for parameters
 	auto envChanged = updateParameterPtsSets(fc, argSets);
 	return std::make_pair(true, envChanged);
 }
@@ -162,24 +164,35 @@ void TransferFunction::evalInternalCall(const context::Context* ctx, const CallC
 	assert(tgtCFG != nullptr);
 	auto tgtEntryNode = tgtCFG->getEntryNode();
 
-	// Apply context sensitivity based on the configured policy
-	auto callsite = callNode.getCallSite();
-	auto newCtx = ContextSensitivityPolicy::pushContext(ctx, callsite);
+	// Get the context from the function context instead of creating a new one
+	auto newCtx = fc.getContext();
+	
+	// Debug output for context creation
+	static size_t callCount = 0;
+	if (callCount < 20) {
+		llvm::errs() << "DEBUG: [" << callCount << "] evalInternalCall for " 
+		             << fc.getFunction()->getName() 
+					 << " ctx size=" << ctx->size() 
+					 << " newCtx size=" << newCtx->size() 
+					 << "\n";
+		callCount++;
+	}
 
+	// Use the function context directly as it already has the correct context
+	// Use newCtx consistently to ensure context propagation
 	bool isValid, envChanged;
-	std::tie(isValid, envChanged) = evalCallArguments(ctx, callNode, fc);
+	std::tie(isValid, envChanged) = evalCallArguments(newCtx, callNode, fc);
 	if (!isValid)
 		return;
 	if (envChanged || callGraphUpdated)
 	{
-		evalResult.addTopLevelProgramPoint(ProgramPoint(fc.getContext(), tgtEntryNode));
+		evalResult.addTopLevelProgramPoint(ProgramPoint(newCtx, tgtEntryNode));
 	}
 
-	// 上下文敏感分析中的每个函数调用上下文只需要维护与其相关的内存状态，而不是整个程序的内存状态，从而减少了内存使用和计算开销
-	// FIXME?: Create a cache mapping call sites to their pruned store？
+	// Create a pruned store for this context
 	auto prunedStore = StorePruner(globalState.getEnv(), globalState.getPointerManager(), globalState.getMemoryManager()).pruneStore(*localState, ProgramPoint(newCtx, &callNode));
 	auto& newStore = evalResult.getNewStore(std::move(prunedStore));
-	evalResult.addMemLevelProgramPoint(ProgramPoint(fc.getContext(), tgtEntryNode), newStore);
+	evalResult.addMemLevelProgramPoint(ProgramPoint(newCtx, tgtEntryNode), newStore);
 
 	// Force enqueuing the direct successors of the call
 	if (!tgtCFG->doesNotReturn())
@@ -199,15 +212,18 @@ void TransferFunction::evalCallNode(const ProgramPoint& pp, EvalResult& evalResu
 	{
 		// Update call graph first
 		auto callsite = callNode.getCallSite();
-		// Use the configured context sensitivity policy
-		auto newCtx = ContextSensitivityPolicy::pushContext(ctx, callsite);
+		// Create context once here, don't recreate it inside evalInternalCall
+		auto newCtx = context::KLimitContext::pushContext(ctx, callsite);
 		auto callTgt = FunctionContext(newCtx, f);
-		bool callGraphUpdated = globalState.getCallGraph().insertEdge(ProgramPoint(ctx, &callNode), callTgt);
+		
+		// Use newCtx in source program point for consistent context tracking in call graph
+		bool callGraphUpdated = globalState.getCallGraph().insertEdge(ProgramPoint(newCtx, &callNode), callTgt);
 
 		// Check whether f is an external library call
 		if (f->isDeclaration())
 			evalExternalCall(newCtx, callNode, callTgt, evalResult);
 		else
+			// Pass newCtx consistently everywhere
 			evalInternalCall(newCtx, callNode, callTgt, evalResult, callGraphUpdated);
 	}
 }
