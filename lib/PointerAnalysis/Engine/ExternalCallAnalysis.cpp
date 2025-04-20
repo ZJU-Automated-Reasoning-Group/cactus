@@ -133,8 +133,9 @@ bool TransferFunction::evalMallocWithSize(const context::Context* ctx, const llv
 {
 	assert(ctx != nullptr && dstVal != nullptr);
 	
-	// Apply context sensitivity based on the configured policy
-	auto allocCtx = ContextSensitivityPolicy::pushContext(ctx, dstVal);
+	// Use the context that was passed in, don't create a new one
+	// This context should already have been pushed at the call site
+	auto allocCtx = ctx;
 
 	const TypeLayout* typeLayout = nullptr;
 	if (mallocType == nullptr)
@@ -158,10 +159,10 @@ bool TransferFunction::evalExternalAlloc(const context::Context* ctx, const Call
 	if (dstVal == nullptr)
 		return false;
 	
-	// Apply context sensitivity based on the configured policy
+	// Apply context sensitivity based on the configured policy but make sure to use ctx
+	// Don't create a new context here because we're already in a context from the call site
 	auto callsite = callNode.getCallSite();
-	auto newCtx = ContextSensitivityPolicy::pushContext(ctx, callsite);
-
+	
 	auto mallocType = getMallocType(callNode.getCallSite());
 	const Value* sizeVal = nullptr;
 	if (allocEffect.hasSizePosition()) {
@@ -172,8 +173,8 @@ bool TransferFunction::evalExternalAlloc(const context::Context* ctx, const Call
 		}
 	}
 
-	// Handle the case where getMallocType returns nullptr
-	return evalMallocWithSize(newCtx, dstVal, mallocType, sizeVal);
+	// Use the context provided to us, not a newly created one
+	return evalMallocWithSize(ctx, dstVal, mallocType, sizeVal);
 }
 
 void TransferFunction::evalMemcpyPtsSet(const MemoryObject* dstObj, const std::vector<const MemoryObject*>& srcObjs, size_t startingOffset, Store& store)
@@ -249,6 +250,7 @@ PtsSet TransferFunction::evalExternalCopySource(const context::Context* ctx, con
 			if (argVal == nullptr)
 				return PtsSet::getEmptySet();
 			
+			// Ensure we use the non-global context that was passed in
 			auto ptr = globalState.getPointerManager().getPointer(ctx, argVal);
 			if (ptr == nullptr)
 				return PtsSet::getEmptySet();
@@ -261,6 +263,7 @@ PtsSet TransferFunction::evalExternalCopySource(const context::Context* ctx, con
 			if (argVal == nullptr)
 				return PtsSet::getEmptySet();
 			
+			// Ensure we use the non-global context that was passed in
 			auto ptr = globalState.getPointerManager().getPointer(ctx, argVal);
 			if (ptr == nullptr)
 				return PtsSet::getEmptySet();
@@ -310,6 +313,7 @@ void TransferFunction::evalExternalCopyDest(const context::Context* ctx, const C
 		if (argVal == nullptr)
 			return;
 		
+		// Ensure we're creating pointers with the context passed in, not the global context
 		auto dstPtr = globalState.getPointerManager().getOrCreatePointer(ctx, argVal);
 		
 		switch (dest.getType())
@@ -347,6 +351,17 @@ void TransferFunction::evalExternalCopy(const context::Context* ctx, const CallC
 	auto const& src = copyEffect.getSource();
 	auto const& dest = copyEffect.getDest();
 
+	// Add debug output
+	static size_t copyCount = 0;
+	bool showDebug = copyCount < 20;
+	copyCount++;
+	
+	if (showDebug) {
+		llvm::errs() << "DEBUG: [ExternalCopy:" << copyCount << "] Processing copy with context depth=" 
+		             << ctx->size() << ", src type=" << static_cast<int>(src.getType())
+					 << ", dest type=" << static_cast<int>(dest.getType()) << "\n";
+	}
+
 	// Special case for memcpy: the source is not a single ptr/mem
 	if (src.getType() == CopySource::SourceType::ReachableMemory)
 	{
@@ -355,52 +370,120 @@ void TransferFunction::evalExternalCopy(const context::Context* ctx, const CallC
 		auto& store = evalResult.getNewStore(*localState);
 		auto storeChanged = evalMemcpy(ctx, callNode, store, dest.getPosition(), src.getPosition());
 
-		if (storeChanged)
+		if (storeChanged) {
+			// Use the current context for the program point
 			addMemLevelSuccessors(ProgramPoint(ctx, &callNode), store, evalResult);
+			
+			if (showDebug) {
+				llvm::errs() << "DEBUG: [ExternalCopy:" << copyCount << "] Added mem-level successors for memcpy with context depth=" 
+				             << ctx->size() << "\n";
+			}
+		} else if (showDebug) {
+			llvm::errs() << "DEBUG: [ExternalCopy:" << copyCount << "] No store changes for memcpy\n";
+		}
 	}
 	else
 	{
 		auto srcSet = evalExternalCopySource(ctx, callNode, src);
-		if (!srcSet.empty())
+		if (!srcSet.empty()) {
 			evalExternalCopyDest(ctx, callNode, evalResult, dest, srcSet);
+			
+			if (showDebug) {
+				llvm::errs() << "DEBUG: [ExternalCopy:" << copyCount << "] Processed copy operation with non-empty source set, context depth=" 
+				             << ctx->size() << "\n";
+			}
+		} else if (showDebug) {
+			llvm::errs() << "DEBUG: [ExternalCopy:" << copyCount << "] Empty source set for copy operation\n";
+		}
 	}
 }
 
 void TransferFunction::evalExternalCallByEffect(const context::Context* ctx, const CallCFGNode& callNode, const PointerEffect& effect, EvalResult& evalResult)
 {
+	// Add debug output
+	static size_t effectCount = 0;
+	bool showDebug = effectCount < 20;
+	effectCount++;
+	
+	if (showDebug) {
+		llvm::errs() << "DEBUG: [ExternalEffect:" << effectCount << "] Processing effect type=" 
+		             << static_cast<int>(effect.getType()) 
+					 << " with context depth=" << ctx->size() << "\n";
+	}
+	
 	switch (effect.getType())
 	{
 		case PointerEffectType::Alloc:
 		{
-			if (evalExternalAlloc(ctx, callNode, effect.getAsAllocEffect()))
+			if (evalExternalAlloc(ctx, callNode, effect.getAsAllocEffect())) {
+				// Use the current context for the program point
 				addTopLevelSuccessors(ProgramPoint(ctx, &callNode), evalResult);
+				
+				if (showDebug) {
+					llvm::errs() << "DEBUG: [ExternalEffect:" << effectCount << "] Added top-level successors with context depth=" 
+								 << ctx->size() << "\n";
+				}
+			}
+			// Preserve context for memory-level successors
 			addMemLevelSuccessors(ProgramPoint(ctx, &callNode), *localState, evalResult);
+			
+			if (showDebug) {
+				llvm::errs() << "DEBUG: [ExternalEffect:" << effectCount << "] Added mem-level successors with context depth=" 
+				             << ctx->size() << "\n";
+			}
 			break;
 		}
 		case PointerEffectType::Copy:
 		{
 			evalExternalCopy(ctx, callNode, evalResult, effect.getAsCopyEffect());
+			
+			if (showDebug) {
+				llvm::errs() << "DEBUG: [ExternalEffect:" << effectCount << "] Processed copy effect with context depth=" 
+				             << ctx->size() << "\n";
+			}
 			break;
 		}
 		case PointerEffectType::Exit:
+			if (showDebug) {
+				llvm::errs() << "DEBUG: [ExternalEffect:" << effectCount << "] Processed exit effect with context depth=" 
+				             << ctx->size() << "\n";
+			}
 			break;
 	}
 }
 
 void TransferFunction::evalExternalCall(const context::Context* ctx, const CallCFGNode& callNode, const FunctionContext& fc, EvalResult& evalResult)
 {
-	// Apply context sensitivity based on the configured policy
-	auto callsite = callNode.getCallSite();
-	auto newCtx = ContextSensitivityPolicy::pushContext(ctx, callsite);
+	// Use fc.getContext() directly instead of creating a new context
+	// This ensures consistent context handling between internal and external calls
+	auto newCtx = fc.getContext();
+	
+	// Add debug output to track context usage
+	static size_t externalCallCount = 0;
+	bool showDebug = externalCallCount < 20;
+	externalCallCount++;
+	
+	if (showDebug) {
+		llvm::errs() << "DEBUG: [ExternalCall:" << externalCallCount << "] Function " 
+		             << fc.getFunction()->getName() 
+					 << ", ctx depth=" << ctx->size() 
+					 << ", new ctx depth=" << newCtx->size() << "\n";
+	}
 	
 	auto summary = globalState.getExternalPointerTable().lookup(fc.getFunction()->getName());
 	if (summary == nullptr)
 	{
-		errs() << "\nWarning: Cannot find annotation for external function:\n" << fc.getFunction()->getName() << "\n";
-		errs() << "Treating as IGNORE. Add annotation to config file for more precise analysis.\n";
+		llvm::errs() << "\nWarning: Cannot find annotation for external function:\n" << fc.getFunction()->getName() << "\n";
+		llvm::errs() << "Treating as IGNORE. Add annotation to config file for more precise analysis.\n";
 		
 		// Treat unmodeled functions as no-ops by default instead of crashing
+		// But preserve the context when adding successors
 		addMemLevelSuccessors(ProgramPoint(newCtx, &callNode), *localState, evalResult);
+		
+		if (showDebug) {
+			llvm::errs() << "DEBUG: [ExternalCall:" << externalCallCount << "] Added successors with context depth=" 
+			             << newCtx->size() << "\n";
+		}
 		return;
 	}
 
@@ -408,9 +491,26 @@ void TransferFunction::evalExternalCall(const context::Context* ctx, const CallC
 	if (summary->empty())
 	{
 		addMemLevelSuccessors(ProgramPoint(newCtx, &callNode), *localState, evalResult);
+		
+		if (showDebug) {
+			llvm::errs() << "DEBUG: [ExternalCall:" << externalCallCount << "] Empty summary, added successors with context depth=" 
+			             << newCtx->size() << "\n";
+		}
 	}
 	else
 	{
+		if (showDebug) {
+			// Since PointerEffectSummary doesn't have a size() method, count effects manually
+			size_t effectCount = 0;
+			for (auto const& effect: *summary) {
+				effectCount++;
+			}
+			
+			llvm::errs() << "DEBUG: [ExternalCall:" << externalCallCount << "] Found " 
+			             << effectCount << " effects to process with context depth=" 
+						 << newCtx->size() << "\n";
+		}
+		
 		for (auto const& effect: *summary)
 			evalExternalCallByEffect(newCtx, callNode, effect, evalResult);
 	}

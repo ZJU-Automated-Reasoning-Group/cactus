@@ -1,4 +1,5 @@
 #include "Context/Context.h"
+#include "Context/KLimitContext.h"
 #include "PointerAnalysis/MemoryModel/PointerManager.h"
 
 #include <llvm/IR/Constants.h>
@@ -59,7 +60,7 @@ const llvm::Value* canonicalizeValue(const llvm::Value* value)
  * These special pointers need to be set explicitly using setUniversalPointer
  * and setNullPointer before the manager can be fully used.
  */
-PointerManager::PointerManager(): uPtr(nullptr), nPtr(nullptr) {}
+PointerManager::PointerManager(): uPtr(nullptr), nPtr(nullptr), preserveGlobalValueContexts(false) {}
 
 /**
  * Builds or retrieves a Pointer for a context-value pair
@@ -157,7 +158,7 @@ const Pointer* PointerManager::getNullPointer() const
  * This method handles special cases like:
  * 1. Canonicalizing the value to ensure consistent lookup
  * 2. Using the null or universal pointer for null or undefined values
- * 3. Using the global context for global values
+ * 3. Using the global context for global values when preserveGlobalValueContexts is false
  */
 const Pointer* PointerManager::getPointer(const Context* ctx, const llvm::Value* val) const
 {
@@ -169,8 +170,13 @@ const Pointer* PointerManager::getPointer(const Context* ctx, const llvm::Value*
 		return nPtr;
 	else if (llvm::isa<llvm::UndefValue>(val))
 		return uPtr;
-	else if (llvm::isa<llvm::GlobalValue>(val))
-		ctx = Context::getGlobalContext();
+	else if (llvm::isa<llvm::GlobalValue>(val)) {
+		// Only reset context for globals if context preservation is disabled
+		// or if k-limit is 0 (context-insensitive analysis)
+		if (!preserveGlobalValueContexts || context::KLimitContext::getLimit() == 0) {
+			ctx = Context::getGlobalContext();
+		}
+	}
 
 	auto itr = ptrSet.find(Pointer(ctx, val));
 	if (itr == ptrSet.end())
@@ -200,8 +206,13 @@ const Pointer* PointerManager::getOrCreatePointer(const Context* ctx, const llvm
 		return nPtr;
 	else if (llvm::isa<llvm::UndefValue>(val))
 		return uPtr;
-	else if (llvm::isa<llvm::GlobalValue>(val))
-		ctx = Context::getGlobalContext();
+	else if (llvm::isa<llvm::GlobalValue>(val)) {
+		// Only reset context for globals if context preservation is disabled
+		// or if k-limit is 0 (context-insensitive analysis)
+		if (!preserveGlobalValueContexts || context::KLimitContext::getLimit() == 0) {
+			ctx = Context::getGlobalContext();
+		}
+	}
 
 	return buildPointer(ctx, val);
 }

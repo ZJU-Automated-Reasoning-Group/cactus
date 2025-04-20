@@ -15,6 +15,7 @@ More concretely:
 #include "PointerAnalysis/Engine/TransferFunction.h"
 #include "PointerAnalysis/MemoryModel/MemoryManager.h"
 #include "PointerAnalysis/MemoryModel/PointerManager.h"
+#include <llvm/Support/raw_ostream.h>
 
 namespace tpa
 {
@@ -53,10 +54,30 @@ void TransferFunction::evalLoadNode(const ProgramPoint& pp, EvalResult& evalResu
 	auto ctx = pp.getContext();
 	auto const& loadNode = static_cast<const LoadCFGNode&>(*pp.getCFGNode());
 
+	// Debug - track contexts in load operations
+	static size_t loadOpCount = 0;
+	bool showDebug = loadOpCount < 20;
+	loadOpCount++;
+
 	auto& ptrManager = globalState.getPointerManager();
 	auto srcPtr = ptrManager.getPointer(ctx, loadNode.getSrc());
-	if (srcPtr == nullptr)
+	if (srcPtr == nullptr) {
+		if (showDebug) {
+			llvm::errs() << "DEBUG: Load src ptr is nullptr, ctx depth=" << ctx->size() << "\n";
+		}
 		return;
+	}
+
+	// Debug - verify the source pointer's context
+	if (showDebug) {
+		llvm::errs() << "DEBUG: [Load:" << loadOpCount << "] ctx depth=" << ctx->size() 
+		             << ", src ptr ctx depth=" << srcPtr->getContext()->size();
+		
+		if (ctx != srcPtr->getContext()) {
+			llvm::errs() << " (CONTEXT MISMATCH!)";
+		}
+		llvm::errs() << "\n";
+	}
 
 	//assert(srcPtr != nullptr && "LoadNode is evaluated before its src operand becomes available");
 	auto dstPtr = ptrManager.getOrCreatePointer(ctx, loadNode.getDest());

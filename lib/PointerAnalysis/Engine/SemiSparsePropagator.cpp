@@ -4,6 +4,7 @@
 #include "PointerAnalysis/Engine/WorkList.h"
 #include "PointerAnalysis/Program/CFG/CFG.h"
 #include "PointerAnalysis/Support/Memo.h"
+#include "Context/Context.h"
 
 #include "Util/IO/PointerAnalysis/Printer.h"
 #include <llvm/Support/raw_ostream.h>
@@ -43,6 +44,16 @@ bool isTopLevelNode(const CFGNode* node)
  */
 bool SemiSparsePropagator::enqueueIfMemoChange(const ProgramPoint& pp, const Store& store)
 {
+	// Debug contexts during propagation
+	static size_t propagationCount = 0;
+	bool showDebug = propagationCount < 50;
+	propagationCount++;
+	
+	if (showDebug && propagationCount % 10 == 0) {
+		errs() << "DEBUG: [Propagation:" << propagationCount << "] Context depth=" 
+		       << pp.getContext()->size() << "\n";
+	}
+
 	if (memo.update(pp, store))
 	{
 		workList.enqueue(pp);
@@ -64,8 +75,19 @@ bool SemiSparsePropagator::enqueueIfMemoChange(const ProgramPoint& pp, const Sto
 void SemiSparsePropagator::propagateTopLevel(const EvalSuccessor& evalSucc)
 {
 	// Top-level successors: no store merging, just enqueue
-	workList.enqueue(evalSucc.getProgramPoint());
-	//errs() << "\tENQ(T) " << evalSucc.getProgramPoint() << "\n";
+	auto pp = evalSucc.getProgramPoint();
+	
+	// Critical: Ensure context is properly propagated
+	static size_t topLevelPropCount = 0;
+	bool showDebug = topLevelPropCount < 20;
+	topLevelPropCount++;
+	
+	if (showDebug) {
+		errs() << "DEBUG: [TopLevelProp:" << topLevelPropCount << "] Enqueueing program point with context depth="
+		       << pp.getContext()->size() << "\n";
+	}
+	
+	workList.enqueue(pp);
 }
 
 /**
@@ -81,13 +103,27 @@ void SemiSparsePropagator::propagateTopLevel(const EvalSuccessor& evalSucc)
 void SemiSparsePropagator::propagateMemLevel(const EvalSuccessor& evalSucc)
 {
 	// Mem-level successors: store merging, enqueue if memo changed
-	auto node = evalSucc.getProgramPoint().getCFGNode();
+	auto pp = evalSucc.getProgramPoint();
+	auto node = pp.getCFGNode();
+	
+	// Critical: Debug context propagation in memory-level operations
+	static size_t memLevelPropCount = 0;
+	bool showDebug = memLevelPropCount < 20;
+	memLevelPropCount++;
+	
+	if (showDebug) {
+		errs() << "DEBUG: [MemLevelProp:" << memLevelPropCount << "] Processing program point with context depth="
+		       << pp.getContext()->size() << "\n";
+	}
+	
 	assert(!isTopLevelNode(node));
 	assert(evalSucc.getStore() != nullptr);
-	bool enqueued = enqueueIfMemoChange(evalSucc.getProgramPoint(), *evalSucc.getStore());
+	bool enqueued = enqueueIfMemoChange(pp, *evalSucc.getStore());
 
-	//if (enqueued)
-	//	errs() << "\tENQ(M) " << evalSucc.getProgramPoint() << "\n";
+	if (showDebug && enqueued) {
+		errs() << "DEBUG: [MemLevelProp:" << memLevelPropCount << "] Enqueued program point with context depth="
+		       << pp.getContext()->size() << "\n";
+	}
 }
 
 /**

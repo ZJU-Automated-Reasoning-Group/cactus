@@ -88,8 +88,23 @@ void runAnalysisOnModule(const Module& module, const CommandLineOptions& opts)
 	SemiSparseProgramBuilder ssProgBuilder;
 	auto ssProg = ssProgBuilder.runOnModule(module);
 	
-	// Create and configure the pointer analysis
+	// Create pointer analysis instance
 	auto ptrAnalysis = SemiSparsePointerAnalysis();
+	
+	// Enable context preservation for global values if k > 0
+	// This needs to be done before loading external pointer table
+	if (k > 0) {
+		outs() << "Enabling context preservation for global values\n";
+		// Use the non-const accessor to get the PointerManager
+		ptrAnalysis.getMutablePointerManager().setPreserveGlobalValueContexts(true);
+		
+		if (debugContext) {
+			outs() << "DEBUG: Global value context preservation enabled: " 
+			       << (ptrAnalysis.getPointerManager().getPreserveGlobalValueContexts() ? "true" : "false") << "\n";
+		}
+	}
+	
+	// Load external pointer configuration after setting up the pointer manager
 	ptrAnalysis.loadExternalPointerTable(opts.getPtrConfigFileName().data());
 	
 	if (debugContext) {
@@ -263,6 +278,45 @@ void runAnalysisOnModule(const Module& module, const CommandLineOptions& opts)
 				outs() << "WARNING: All contexts are global contexts (depth=0). "
 				       << "This suggests context sensitivity is not working correctly.\n"
 					   << "Check that KLimitContext is being properly used during analysis.\n";
+			}
+			
+			// Check for global variables with preserved contexts
+			outs() << "\n--- Global Value Context Preservation Check ---\n";
+			bool foundGlobalWithNonGlobalContext = false;
+			size_t globalVarsWithContextCount = 0;
+			
+			// Track global variables with their contexts
+			std::map<const llvm::GlobalValue*, std::set<const context::Context*>> globalContexts;
+			
+			for (const auto* ptr : pointers) {
+				const auto* val = ptr->getValue();
+				const auto* ctx = ptr->getContext();
+				
+				if (llvm::isa<llvm::GlobalValue>(val) && ctx->size() > 0) {
+					foundGlobalWithNonGlobalContext = true;
+					globalVarsWithContextCount++;
+					globalContexts[llvm::cast<llvm::GlobalValue>(val)].insert(ctx);
+				}
+			}
+			
+			if (foundGlobalWithNonGlobalContext) {
+				outs() << "VALID: Found " << globalVarsWithContextCount 
+				       << " global variable pointers with non-global contexts\n";
+				       
+				// Show some examples (max 3)
+				outs() << "Examples:\n";
+				size_t shown = 0;
+				for (const auto& pair : globalContexts) {
+					if (shown >= 3) break;
+					const auto* gv = pair.first;
+					const auto& contexts = pair.second;
+					
+					outs() << "  Global: " << gv->getName() << ", contexts: " << contexts.size() << "\n";
+					shown++;
+				}
+			} else {
+				outs() << "WARNING: No global variables found with non-global contexts.\n"
+				       << "         This may indicate that context preservation for globals is not working.\n";
 			}
 			
 			// Print a more detailed report

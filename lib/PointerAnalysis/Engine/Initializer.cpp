@@ -1,10 +1,12 @@
 #include "Context/Context.h"
+#include "Context/KLimitContext.h"
 #include "PointerAnalysis/Engine/GlobalState.h"
 #include "PointerAnalysis/Engine/Initializer.h"
 #include "PointerAnalysis/MemoryModel/MemoryManager.h"
 #include "PointerAnalysis/MemoryModel/PointerManager.h"
 #include "PointerAnalysis/Program/SemiSparseProgram.h"
 #include "PointerAnalysis/Support/Memo.h"
+#include <llvm/Support/raw_ostream.h>
 
 namespace tpa
 {
@@ -33,6 +35,11 @@ ForwardWorkList Initializer::runOnInitState(Store&& initStore)
 	assert(entryCFG != nullptr);
 	auto entryNode = entryCFG->getEntryNode();
 
+	// Log entry context info
+	llvm::errs() << "DEBUG: Initializing analysis with entry function " 
+	             << entryCFG->getFunction().getName() 
+				 << ", k=" << context::KLimitContext::getLimit() << "\n";
+
 	// Set up argv
 	auto& entryFunc = entryCFG->getFunction();
 	if (entryFunc.arg_size() > 1)
@@ -59,6 +66,9 @@ ForwardWorkList Initializer::runOnInitState(Store&& initStore)
 	auto pp = ProgramPoint(entryCtx, entryNode);
 	memo.update(pp, std::move(initStore));
 	workList.enqueue(pp);
+	
+	llvm::errs() << "DEBUG: Initial program point created with context depth " 
+	             << entryCtx->size() << ", node type EntryNode\n";
 
 	return workList;
 }

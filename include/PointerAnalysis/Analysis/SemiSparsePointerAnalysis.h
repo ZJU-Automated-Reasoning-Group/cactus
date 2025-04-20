@@ -23,6 +23,9 @@ public:
 
 	PtsSet getPtsSetImpl(const Pointer*) const;
 	
+	// Get a non-const reference to the pointer manager
+	PointerManager& getMutablePointerManager() { return ptrManager; }
+	
 	// Get a query interface for this pointer analysis
 	std::unique_ptr<PointerAnalysisQueries> createQueryInterface() const
 	{

@@ -25,6 +25,9 @@ private:
 	// Convention: uPtr's value is a i8* UndefValue; nPtr's value is a i8* ConstantPointerNull; both of them has GlobalContext
 	const Pointer* uPtr;
 	const Pointer* nPtr;
+	
+	// Whether to preserve contexts for global values in context-sensitive analysis
+	bool preserveGlobalValueContexts;
 
 	// Group together Pointers with the same llvm::Value
 	using PointerVector = std::vector<const Pointer*>;
@@ -38,6 +41,10 @@ public:
 	const Pointer* getUniversalPointer() const;
 	const Pointer* setNullPointer(const llvm::ConstantPointerNull*);
 	const Pointer* getNullPointer() const;
+
+	// Set whether to preserve contexts for global values
+	void setPreserveGlobalValueContexts(bool preserve) { preserveGlobalValueContexts = preserve; }
+	bool getPreserveGlobalValueContexts() const { return preserveGlobalValueContexts; }
 
 	// Return a Pointer corresponds to (ctx, val). If not exist, create one
 	const Pointer* getOrCreatePointer(const context::Context* ctx, const llvm::Value* val);

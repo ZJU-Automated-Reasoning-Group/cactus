@@ -139,21 +139,19 @@ std::pair<bool, bool> TransferFunction::evalCallArguments(const context::Context
 {
 	auto numParams = countPointerArguments(fc.getFunction());
 	
-	// Remove the assertion and handle the case where there are fewer arguments than parameters
-	// assert(callNode.getNumArgument() >= numParams);
-
-	// FIXME: is this a good idea (what will this cause...shoud we fail here?)
 	if (callNode.getNumArgument() < numParams) {
 		errs() << "Warning: Function call has fewer arguments (" << callNode.getNumArgument() 
 		       << ") than parameters (" << numParams << "). Using available arguments only.\n";
 		numParams = callNode.getNumArgument();
 	}
 	
+	// IMPORTANT: Use the caller's context (ctx) for argument lookup, not the callee's context
+	// The arguments exist in the caller's context
 	auto argSets = collectArgumentPtsSets(ctx, callNode, numParams);
 	if (argSets.size() < numParams)
 		return std::make_pair(false, false);
 
-	// IMPORTANT: Use the function context's context (the new context) for parameters
+	// Use the function context's context (the new context) for parameters
 	auto envChanged = updateParameterPtsSets(fc, argSets);
 	return std::make_pair(true, envChanged);
 }
@@ -178,10 +176,10 @@ void TransferFunction::evalInternalCall(const context::Context* ctx, const CallC
 		callCount++;
 	}
 
-	// Use the function context directly as it already has the correct context
-	// Use newCtx consistently to ensure context propagation
+	// Use the caller's context (ctx) when collecting arguments, not the callee's context (newCtx)
+	// Arguments exist in the caller's context, not the callee's context
 	bool isValid, envChanged;
-	std::tie(isValid, envChanged) = evalCallArguments(newCtx, callNode, fc);
+	std::tie(isValid, envChanged) = evalCallArguments(ctx, callNode, fc);
 	if (!isValid)
 		return;
 	if (envChanged || callGraphUpdated)

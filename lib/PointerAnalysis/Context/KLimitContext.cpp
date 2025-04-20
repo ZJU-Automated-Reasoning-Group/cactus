@@ -62,6 +62,15 @@ const Context* KLimitContext::pushContext(const Context* ctx, const Instruction*
 			calledFn = invokeInst->getCalledFunction();
 		}
 		
+		// Skip debug intrinsics (llvm.dbg.*) - they don't represent real function calls
+		if (calledFn && calledFn->getName().startswith("llvm.dbg")) {
+			if (showDebug) {
+				errs() << "DEBUG: [" << pushCount << "] Skipping debug intrinsic: " << calledFn->getName() << "\n";
+			}
+			return ctx; // Don't create a new context for debug intrinsics
+		}
+		
+		// Log the call instruction we found
 		if (showDebug) {
 			errs() << "DEBUG: [" << pushCount << "] Found call instruction: ";
 			if (calledFn) {
@@ -75,21 +84,57 @@ const Context* KLimitContext::pushContext(const Context* ctx, const Instruction*
 		if (ctx->size() >= k) {
 			// We're limiting context depth
 			static size_t limitHits = 0;
-			if (limitHits < 5) {
-				errs() << "DEBUG: Context limit k=" << k << " reached, context size=" << ctx->size() << "\n";
-				limitHits++;
+			limitHits++;
+			
+			// Log more details about contexts that are being limited
+			if (limitHits <= 10) {
+				errs() << "DEBUG: Context limit k=" << k << " reached, context size=" << ctx->size() 
+				       << " for call to ";
+				if (calledFn) {
+					errs() << calledFn->getName();
+				} else {
+					errs() << "[indirect call]";
+				}
+				errs() << " at ";
+				if (!inst->getDebugLoc().isUnknown()) {
+					inst->getDebugLoc().print(errs());
+				} else {
+					errs() << "[no debug loc]";
+				}
+				errs() << "\n";
+			} else if (limitHits == 11) {
+				errs() << "DEBUG: Further context limit messages suppressed...\n";
 			}
+			
 			return ctx;
 		}
 		else {
 			// Create a new context with call site pushed
 			static size_t newContexts = 0;
-			if (newContexts < 5) {
+			newContexts++;
+			
+			if (newContexts <= 10) {
 				errs() << "DEBUG: Creating new context with depth=" << (ctx->size() + 1) 
-					<< " (limit k=" << k << ")\n";
-				newContexts++;
+					<< " (limit k=" << k << ") for ";
+				if (calledFn) {
+					errs() << calledFn->getName();
+				} else {
+					errs() << "[indirect call]";
+				}
+				errs() << "\n";
+			} else if (newContexts == 11) {
+				errs() << "DEBUG: Further context creation messages suppressed...\n";
 			}
-			return Context::pushContext(ctx, inst);
+			
+			const Context* newCtx = Context::pushContext(ctx, inst);
+			
+			// Log the actual context that was created (for verification)
+			if (newContexts <= 10) {
+				errs() << "DEBUG: Created context with actual depth=" << newCtx->size() 
+				       << ", old ctx=" << ctx << ", new ctx=" << newCtx << "\n";
+			}
+			
+			return newCtx;
 		}
 	} else {
 		// Not a call instruction or null instruction - don't create a new context

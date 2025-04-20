@@ -2,6 +2,7 @@
 #include "PointerAnalysis/Engine/TransferFunction.h"
 #include "PointerAnalysis/MemoryModel/MemoryManager.h"
 #include "PointerAnalysis/MemoryModel/PointerManager.h"
+#include <llvm/Support/raw_ostream.h>
 
 namespace tpa
 {
@@ -24,6 +25,23 @@ void TransferFunction::weakUpdateStore(PtsSet dstSet, PtsSet srcSet, Store& stor
 
 void TransferFunction::evalStore(const Pointer* dst, const Pointer* src, const ProgramPoint& pp, EvalResult& evalResult)
 {
+	// Debug - verify pointer contexts match the program point
+	static size_t storeOpCount = 0;
+	bool showDebug = storeOpCount < 20;
+	storeOpCount++;
+	
+	if (showDebug) {
+		auto ctx = pp.getContext();
+		llvm::errs() << "DEBUG: [Store:" << storeOpCount << "] pp ctx depth=" << ctx->size()
+		             << ", dst ptr ctx depth=" << dst->getContext()->size()
+					 << ", src ptr ctx depth=" << src->getContext()->size();
+					 
+		if (ctx != dst->getContext() || ctx != src->getContext()) {
+			llvm::errs() << " (CONTEXT MISMATCH!)";
+		}
+		llvm::errs() << "\n";
+	}
+
 	auto& env = globalState.getEnv();
 
 	auto srcSet = env.lookup(src);
@@ -56,8 +74,20 @@ void TransferFunction::evalStoreNode(const ProgramPoint& pp, EvalResult& evalRes
 	auto srcPtr = ptrManager.getPointer(ctx, storeNode.getSrc());
 	auto dstPtr = ptrManager.getPointer(ctx, storeNode.getDest());
 
-	if (srcPtr == nullptr || dstPtr == nullptr)
+	// Debug - track when pointers are missing
+	static size_t storeNodeCount = 0;
+	bool showDebug = storeNodeCount < 20;
+	storeNodeCount++;
+	
+	if (srcPtr == nullptr || dstPtr == nullptr) {
+		if (showDebug) {
+			llvm::errs() << "DEBUG: [StoreNode:" << storeNodeCount << "] Missing pointer: "
+			             << "src=" << (srcPtr ? "valid" : "null") 
+						 << ", dst=" << (dstPtr ? "valid" : "null")
+						 << ", ctx depth=" << ctx->size() << "\n";
+		}
 		return;
+	}
 
 	evalStore(dstPtr, srcPtr, pp, evalResult);
 }

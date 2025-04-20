@@ -27,8 +27,9 @@ namespace tpa
  */
 bool TransferFunction::evalMemoryAllocation(const context::Context* ctx, const llvm::Instruction* inst, const TypeLayout* type, bool isHeap)
 {
-	// Apply context sensitivity based on the configured policy
-	auto allocCtx = ContextSensitivityPolicy::pushContext(ctx, inst);
+	// Use the context that was provided (don't create a new one)
+	// The context should already have been created at the call site
+	auto allocCtx = ctx;
 	auto ptr = globalState.getPointerManager().getOrCreatePointer(allocCtx, inst);
 
 	auto mem = 
