@@ -72,13 +72,10 @@ std::vector<const llvm::Function*> TransferFunction::resolveCallTarget(const con
 {
 	auto callees = std::vector<const llvm::Function*>();
 
-	auto funPtr = globalState.getPointerManager().getPointer(ctx, callNode.getFunctionPointer());
-	if (funPtr != nullptr)
-	{
-		auto funSet = globalState.getEnv().lookup(funPtr);
-		if (!funSet.empty())
-			callees = findFunctionInPtsSet(funSet, callNode);
-	}
+	auto funPtr = globalState.getPointerManager().getOrCreatePointer(ctx, callNode.getFunctionPointer());
+	auto funSet = globalState.getEnv().lookup(funPtr);
+	if (!funSet.empty())
+		callees = findFunctionInPtsSet(funSet, callNode);
 
 	return callees;
 }
@@ -93,13 +90,10 @@ std::vector<PtsSet> TransferFunction::collectArgumentPtsSets(const context::Cont
 	auto argItr = callNode.begin();
 	for (auto i = 0u; i < numParams; ++i)
 	{
-		auto argPtr = ptrManager.getPointer(ctx, *argItr);
-		if (argPtr == nullptr)
-			break;
-
+		auto argPtr = ptrManager.getOrCreatePointer(ctx, *argItr);
 		auto pSet = env.lookup(argPtr);
 		if (pSet.empty())
-			break;
+			continue;
 
 		result.emplace_back(pSet);
 		++argItr;
@@ -214,15 +208,16 @@ void TransferFunction::evalCallNode(const ProgramPoint& pp, EvalResult& evalResu
 		auto newCtx = context::KLimitContext::pushContext(ctx, callsite);
 		auto callTgt = FunctionContext(newCtx, f);
 		
-		// Use newCtx in source program point for consistent context tracking in call graph
-		bool callGraphUpdated = globalState.getCallGraph().insertEdge(ProgramPoint(newCtx, &callNode), callTgt);
+		// Use ctx (caller's context) in source program point for call graph tracking
+		bool callGraphUpdated = globalState.getCallGraph().insertEdge(ProgramPoint(ctx, &callNode), callTgt);
 
 		// Check whether f is an external library call
 		if (f->isDeclaration())
 			evalExternalCall(newCtx, callNode, callTgt, evalResult);
 		else
-			// Pass newCtx consistently everywhere
-			evalInternalCall(newCtx, callNode, callTgt, evalResult, callGraphUpdated);
+			// FIXED: Pass the original caller context (ctx) to evalInternalCall
+			// This allows nested calls within the function to create deeper contexts
+			evalInternalCall(ctx, callNode, callTgt, evalResult, callGraphUpdated);
 	}
 }
 

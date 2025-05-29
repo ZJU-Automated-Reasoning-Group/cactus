@@ -7,20 +7,15 @@
 namespace tpa
 {
 
-void TransferFunction::strongUpdateStore(const MemoryObject* obj, PtsSet pSet, Store& store)
+void TransferFunction::strongUpdateStore(const MemoryObject* obj, PtsSet srcSet, Store& store)
 {
-	if (!obj->isSpecialObject())
-		store.strongUpdate(obj, pSet);
-	// TODO: in the else branch, report NULL-pointer dereference to the user?
+	store.strongUpdate(obj, srcSet);
 }
 
 void TransferFunction::weakUpdateStore(PtsSet dstSet, PtsSet srcSet, Store& store)
 {
-	for (auto updateObj: dstSet)
-	{
-		if (!updateObj->isSpecialObject())
-			store.weakUpdate(updateObj, srcSet);
-	}
+	for (auto obj: dstSet)
+		store.weakUpdate(obj, srcSet);
 }
 
 void TransferFunction::evalStore(const Pointer* dst, const Pointer* src, const ProgramPoint& pp, EvalResult& evalResult)
@@ -45,22 +40,56 @@ void TransferFunction::evalStore(const Pointer* dst, const Pointer* src, const P
 	auto& env = globalState.getEnv();
 
 	auto srcSet = env.lookup(src);
-	if (srcSet.empty())
+	if (srcSet.empty()) {
+		if (showDebug) {
+			llvm::errs() << "DEBUG: [Store:" << storeOpCount << "] srcSet is empty, returning\n";
+		}
 		return;
+	}
 
 	auto dstSet = env.lookup(dst);
-	if (dstSet.empty())
+	if (dstSet.empty()) {
+		if (showDebug) {
+			llvm::errs() << "DEBUG: [Store:" << storeOpCount << "] dstSet is empty, returning\n";
+		}
 		return;
+	}
+
+	if (showDebug) {
+		llvm::errs() << "DEBUG: [Store:" << storeOpCount << "] srcSet size=" << srcSet.size() 
+		             << ", dstSet size=" << dstSet.size() << "\n";
+		llvm::errs() << "DEBUG: [Store:" << storeOpCount << "] src value: ";
+		if (src->getValue()) {
+			src->getValue()->print(llvm::errs());
+		} else {
+			llvm::errs() << "null";
+		}
+		llvm::errs() << "\n";
+		llvm::errs() << "DEBUG: [Store:" << storeOpCount << "] dst value: ";
+		if (dst->getValue()) {
+			dst->getValue()->print(llvm::errs());
+		} else {
+			llvm::errs() << "null";
+		}
+		llvm::errs() << "\n";
+	}
 
 	auto& store = evalResult.getNewStore(*localState);
 
 	auto dstObj = *dstSet.begin();
 	// If the store target is precise and the target location is not unknown
 	// TOOD: if the dstSet may grow, under what conditions can we perform the strong update here (is it because we are perfomring a flow-sensitive analysis)?
-	if (dstSet.size() == 1 && !dstObj->isSummaryObject())
+	if (dstSet.size() == 1 && !dstObj->isSummaryObject()) {
+		if (showDebug) {
+			llvm::errs() << "DEBUG: [Store:" << storeOpCount << "] Using strongUpdate (dstSet.size()=1)\n";
+		}
 		strongUpdateStore(dstObj, srcSet, store);
-	else
+	} else {
+		if (showDebug) {
+			llvm::errs() << "DEBUG: [Store:" << storeOpCount << "] Using weakUpdate (dstSet.size()=" << dstSet.size() << ")\n";
+		}
 		weakUpdateStore(dstSet, srcSet, store);
+	}
 
 	addMemLevelSuccessors(pp, store, evalResult);
 }
@@ -71,22 +100,20 @@ void TransferFunction::evalStoreNode(const ProgramPoint& pp, EvalResult& evalRes
 	auto const& storeNode = static_cast<const StoreCFGNode&>(*pp.getCFGNode());
 
 	auto& ptrManager = globalState.getPointerManager();
-	auto srcPtr = ptrManager.getPointer(ctx, storeNode.getSrc());
-	auto dstPtr = ptrManager.getPointer(ctx, storeNode.getDest());
+	// FIXED: Use getOrCreatePointer instead of getPointer to enable context sensitivity
+	auto srcPtr = ptrManager.getOrCreatePointer(ctx, storeNode.getSrc());
+	auto dstPtr = ptrManager.getOrCreatePointer(ctx, storeNode.getDest());
 
 	// Debug - track when pointers are missing
 	static size_t storeNodeCount = 0;
 	bool showDebug = storeNodeCount < 20;
 	storeNodeCount++;
 	
-	if (srcPtr == nullptr || dstPtr == nullptr) {
-		if (showDebug) {
-			llvm::errs() << "DEBUG: [StoreNode:" << storeNodeCount << "] Missing pointer: "
-			             << "src=" << (srcPtr ? "valid" : "null") 
-						 << ", dst=" << (dstPtr ? "valid" : "null")
-						 << ", ctx depth=" << ctx->size() << "\n";
-		}
-		return;
+	if (showDebug) {
+		llvm::errs() << "DEBUG: [StoreNode:" << storeNodeCount << "] Created pointers: "
+		             << "src ctx depth=" << srcPtr->getContext()->size()
+					 << ", dst ctx depth=" << dstPtr->getContext()->size()
+					 << ", pp ctx depth=" << ctx->size() << "\n";
 	}
 
 	evalStore(dstPtr, srcPtr, pp, evalResult);

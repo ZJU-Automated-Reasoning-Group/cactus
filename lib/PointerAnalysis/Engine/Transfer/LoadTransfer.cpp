@@ -60,13 +60,7 @@ void TransferFunction::evalLoadNode(const ProgramPoint& pp, EvalResult& evalResu
 	loadOpCount++;
 
 	auto& ptrManager = globalState.getPointerManager();
-	auto srcPtr = ptrManager.getPointer(ctx, loadNode.getSrc());
-	if (srcPtr == nullptr) {
-		if (showDebug) {
-			llvm::errs() << "DEBUG: Load src ptr is nullptr, ctx depth=" << ctx->size() << "\n";
-		}
-		return;
-	}
+	auto srcPtr = ptrManager.getOrCreatePointer(ctx, loadNode.getSrc());
 
 	// Debug - verify the source pointer's context
 	if (showDebug) {
@@ -79,11 +73,10 @@ void TransferFunction::evalLoadNode(const ProgramPoint& pp, EvalResult& evalResu
 		llvm::errs() << "\n";
 	}
 
-	//assert(srcPtr != nullptr && "LoadNode is evaluated before its src operand becomes available");
 	auto dstPtr = ptrManager.getOrCreatePointer(ctx, loadNode.getDest());
 
 	auto resSet = loadFromPointer(srcPtr, *localState);
-	auto envChanged = globalState.getEnv().strongUpdate(dstPtr, resSet);
+	auto envChanged = globalState.getEnv().weakUpdate(dstPtr, resSet);
 	
 	if (envChanged)
 		addTopLevelSuccessors(pp, evalResult);

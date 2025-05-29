@@ -5,6 +5,8 @@
 #include <llvm/IR/Constants.h>
 #include <llvm/IR/GlobalValue.h>
 #include <llvm/IR/Instructions.h>
+#include <llvm/IR/Argument.h>
+#include <llvm/Support/raw_ostream.h>
 
 using namespace context;
 
@@ -172,8 +174,8 @@ const Pointer* PointerManager::getPointer(const Context* ctx, const llvm::Value*
 		return uPtr;
 	else if (llvm::isa<llvm::GlobalValue>(val)) {
 		// Only reset context for globals if context preservation is disabled
-		// or if k-limit is 0 (context-insensitive analysis)
-		if (!preserveGlobalValueContexts || context::KLimitContext::getLimit() == 0) {
+		// AND k-limit is 0 (context-insensitive analysis)
+		if (!preserveGlobalValueContexts && context::KLimitContext::getLimit() == 0) {
 			ctx = Context::getGlobalContext();
 		}
 	}
@@ -208,10 +210,29 @@ const Pointer* PointerManager::getOrCreatePointer(const Context* ctx, const llvm
 		return uPtr;
 	else if (llvm::isa<llvm::GlobalValue>(val)) {
 		// Only reset context for globals if context preservation is disabled
-		// or if k-limit is 0 (context-insensitive analysis)
-		if (!preserveGlobalValueContexts || context::KLimitContext::getLimit() == 0) {
+		// AND k-limit is 0 (context-insensitive analysis)
+		if (!preserveGlobalValueContexts && context::KLimitContext::getLimit() == 0) {
 			ctx = Context::getGlobalContext();
 		}
+	}
+
+	// Debug output for pointer creation
+	static size_t ptrCreateCount = 0;
+	ptrCreateCount++;
+	
+	if (ptrCreateCount <= 50 && ctx->size() > 0) {
+		llvm::errs() << "DEBUG: [PtrCreate:" << ptrCreateCount << "] Creating pointer with context depth=" 
+		             << ctx->size() << " for value: ";
+		if (auto inst = llvm::dyn_cast<llvm::Instruction>(val)) {
+			llvm::errs() << inst->getOpcodeName() << " instruction";
+		} else if (auto arg = llvm::dyn_cast<llvm::Argument>(val)) {
+			llvm::errs() << "argument " << arg->getName();
+		} else if (auto gv = llvm::dyn_cast<llvm::GlobalValue>(val)) {
+			llvm::errs() << "global " << gv->getName();
+		} else {
+			llvm::errs() << "other value";
+		}
+		llvm::errs() << "\n";
 	}
 
 	return buildPointer(ctx, val);

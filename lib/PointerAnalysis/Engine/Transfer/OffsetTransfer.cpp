@@ -70,7 +70,8 @@ bool TransferFunction::copyWithOffset(const Pointer* dst, const Pointer* src, si
 	if (resSet.empty())
 		resSet = PtsSet::getSingletonSet(MemoryManager::getUniversalObject());
 
-	return env.strongUpdate(dst, resSet);
+	// FIXED: Use weakUpdate instead of strongUpdate to allow proper points-to set merging
+	return env.weakUpdate(dst, resSet);
 }
 
 void TransferFunction::evalOffsetNode(const ProgramPoint& pp, EvalResult& evalResult)
@@ -79,9 +80,8 @@ void TransferFunction::evalOffsetNode(const ProgramPoint& pp, EvalResult& evalRe
 	auto const& offsetNode = static_cast<const OffsetCFGNode&>(*pp.getCFGNode());
 	auto& ptrManager = globalState.getPointerManager();
 
-	auto srcPtr = ptrManager.getPointer(ctx, offsetNode.getSrc());
-	if (srcPtr == nullptr)
-		return;
+	// FIXED: Use getOrCreatePointer instead of getPointer to enable context sensitivity
+	auto srcPtr = ptrManager.getOrCreatePointer(ctx, offsetNode.getSrc());
 	auto dstPtr = ptrManager.getOrCreatePointer(ctx, offsetNode.getDest());
 
 	auto envChanged = copyWithOffset(dstPtr, srcPtr, offsetNode.getOffset(), offsetNode.isArrayRef());

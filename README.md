@@ -210,12 +210,12 @@ free MOD_ARG NONE             # free modifies its arguments
 - `include/`: Header files for analysis libraries
 - `tools/`: Command-line tools and analysis passes
   - `Sparrow/`: Call graph construction
-  - `WPA/`: Whole program analysis
-  - `SABER/`: Memory bug detection
+  - `WPA/`: Whole program points-to analysis in SVF
+  - `SABER/`: Value-flow based Memory bug detection in SVF
   - `taint-check/`: Taint analysis
   - `global-pts/`: Global points-to analysis
   - `pts-dump/`: Points-to information dump
-  - `pts-inst/`: Points-to instrumentation
+  - `pts-inst/`: Points-to instrumentation (for dynamic alias analysis)
   - `pts-verify/`: Points-to verification
   - `vkcfa-taint/`: Value and context flow-aware taint analysis
   - `table/` and `table-check/`: Analysis table generation and verification

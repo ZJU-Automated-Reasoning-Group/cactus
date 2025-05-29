@@ -18,23 +18,22 @@ void TransferFunction::evalCopyNode(const ProgramPoint& pp, EvalResult& evalResu
 	auto& env = globalState.getEnv();
 	for (auto src: copyNode)
 	{
-		auto srcPtr = ptrManager.getPointer(ctx, src);
+		auto srcPtr = ptrManager.getOrCreatePointer(ctx, src);
 
-		// This must happen in a PHI node, where one operand must be defined after the CopyNode itself. We need to proceed because the operand may depend on the rhs of this CopyNode and if we give up here, the analysis will reach an immature fixpoint
 		if (srcPtr == nullptr)
 			continue;
 
 		auto pSet = env.lookup(srcPtr);
 		if (pSet.empty())
 			// Operand not ready
-			return;
+			continue;
 
 		srcPtsSets.emplace_back(pSet);
 	}
 
 	auto dstPtr = ptrManager.getOrCreatePointer(ctx, copyNode.getDest());
 	auto dstSet = PtsSet::mergeAll(srcPtsSets);
-	auto envChanged = globalState.getEnv().strongUpdate(dstPtr, dstSet);
+	auto envChanged = globalState.getEnv().weakUpdate(dstPtr, dstSet);
 	
 	if (envChanged)
 		addTopLevelSuccessors(pp, evalResult);

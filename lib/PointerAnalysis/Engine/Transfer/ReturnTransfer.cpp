@@ -34,15 +34,12 @@ std::pair<bool, bool> TransferFunction::evalReturnValue(const context::Context* 
 		return std::make_pair(true, false);
 
 	auto& ptrManager = globalState.getPointerManager();
-	auto retPtr = ptrManager.getPointer(ctx, retVal);
-	if (retPtr == nullptr)
-		// Return value not ready
-		return std::make_pair(false, false);
-
+	auto retPtr = ptrManager.getOrCreatePointer(ctx, retVal);
 	auto& env = globalState.getEnv();
 	auto resSet = env.lookup(retPtr);
 	if (resSet.empty())
-		// Return pointer not ready
+		// Return pointer not ready - this can happen if the return value depends
+		// on complex control flow or other dependencies
 		return std::make_pair(false, false);
 
 	auto dstPtr = ptrManager.getOrCreatePointer(retSite.getContext(), dstVal);
@@ -78,8 +75,15 @@ void TransferFunction::evalReturnNode(const ProgramPoint& pp, EvalResult& evalRe
 	//if (prunedStore != nullptr)
 	//	evalResult.getStore().mergeWith(*prunedStore);
 
-	for (auto retSite: globalState.getCallGraph().getCallers(FunctionContext(ctx, &retNode.getFunction())))
-		evalReturn(ctx, retNode, retSite, evalResult);
+	auto& callGraph = globalState.getCallGraph();
+	auto callers = callGraph.getCallers(FunctionContext(ctx, &retNode.getFunction()));
+	for (auto const& caller: callers)
+	{
+		bool isValid, envChanged;
+		std::tie(isValid, envChanged) = evalReturnValue(ctx, retNode, caller);
+		if (isValid && envChanged)
+			evalResult.addTopLevelProgramPoint(caller);
+	}
 }
 
 }

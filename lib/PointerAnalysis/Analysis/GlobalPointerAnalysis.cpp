@@ -1,4 +1,5 @@
 #include "Context/Context.h"
+#include "Context/KLimitContext.h"
 #include "PointerAnalysis/Analysis/GlobalPointerAnalysis.h"
 #include "PointerAnalysis/FrontEnd/Type/TypeMap.h"
 #include "PointerAnalysis/MemoryModel/MemoryManager.h"
@@ -20,7 +21,12 @@ static bool isScalarNonPointerType(const Type* type)
 	return type->isSingleValueType() && !type->isPointerTy();
 }
 
-GlobalPointerAnalysis::GlobalPointerAnalysis(PointerManager& p, MemoryManager& m, const TypeMap& t): ptrManager(p), memManager(m), typeMap(t), globalCtx(context::Context::getGlobalContext()) {}
+GlobalPointerAnalysis::GlobalPointerAnalysis(PointerManager& p, MemoryManager& m, const TypeMap& t): ptrManager(p), memManager(m), typeMap(t), globalCtx(context::Context::getGlobalContext()) 
+{
+	// Note: We always use global context for global analysis since this runs before
+	// the main context-sensitive analysis. The PointerManager will handle context
+	// preservation for global values based on its settings.
+}
 
 void GlobalPointerAnalysis::createGlobalVariables(const Module& module, Env& env)
 {
